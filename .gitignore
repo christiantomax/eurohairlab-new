@@ -8,7 +8,6 @@ Thumbs.db
 .env
 .env.*
 !.env.example
-/.htaccess
 /wp-config.php
 /wp-config-local.php
 /wp-config-*.php
