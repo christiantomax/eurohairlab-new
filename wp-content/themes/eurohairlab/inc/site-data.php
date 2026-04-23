@@ -232,7 +232,7 @@ function eurohairlab_get_primary_nav_items(): array
 {
     return [
         ['label' => 'About', 'url' => eurohairlab_get_page_url('about', '/about/')],
-        ['label' => 'Assessment', 'url' => eurohairlab_get_page_url('diagnosis', '/diagnosis/')],
+        ['label' => 'Diagnosis', 'url' => eurohairlab_get_page_url('diagnosis', '/diagnosis/')],
         ['label' => 'Treatments', 'url' => eurohairlab_get_treatments_page_url()],
         ['label' => 'Results', 'url' => eurohairlab_get_page_url('results', '/results/')],
         ['label' => 'Promo', 'url' => eurohairlab_get_page_url('promo', '/promo/')],
