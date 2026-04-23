@@ -82,10 +82,6 @@ body::-webkit-scrollbar {
   background: transparent;
 }
 
-#main-content {
-  padding-bottom: 10rem;
-}
-
 .eh-scrollbar-visible {
   scrollbar-width: auto;
   -ms-overflow-style: auto;

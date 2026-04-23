@@ -53,7 +53,7 @@ $is_figma_pages = is_page([]);
               >
               <span class="sr-only">Facebook</span>
             </a>
-            <a href="<?php echo esc_url($social_tikktok); ?>" target="_blank" rel="noopener noreferrer" aria-label="Tiktok" class="inline-flex items-center transition hover:opacity-80">
+            <a href="<?php echo esc_url($social_tiktok); ?>" target="_blank" rel="noopener noreferrer" aria-label="Tiktok" class="inline-flex items-center transition hover:opacity-80">
               <img
                 src="<?php echo $theme_uri; ?>/assets/images/icons/tiktok.webp"
                 alt="Facebook"
@@ -81,14 +81,14 @@ $is_figma_pages = is_page([]);
     <div class="pb-10 pt-16 text-center sm:pt-20 lg:pb-12 lg:pt-28">
       <img
         src="<?php echo $theme_uri; ?>/assets/images/logo.webp"
-        alt="Eurohairlab by Dr.Scalp"
+        alt="EUROHAIRLAB By Dr. Scalp"
         class="mx-auto h-auto w-full max-w-[18rem] opacity-95 sm:max-w-[24rem] lg:max-w-[36rem]"
         width="736"
         height="143"
         loading="lazy"
         decoding="async"
       >
-      <p class="mt-8 text-sm text-white/72 sm:text-base">&copy; 2026 Eurohairlab. All Rights Reserved.</p>
+      <p class="mt-8 text-sm text-white/72 sm:text-base">&copy; 2026 EUROHAIRLAB By Dr. Scalp. All Rights Reserved.</p>
     </div>
   </div>
 
@@ -172,14 +172,14 @@ $is_figma_pages = is_page([]);
     <div class="pb-10 pt-20 text-center sm:pt-24 lg:pb-12 lg:pt-36">
       <img
         src="<?php echo $theme_uri; ?>/assets/images/logo.webp"
-        alt="Eurohairlab by Dr.Scalp"
+        alt="EUROHAIRLAB By Dr. Scalp"
         class="mx-auto h-auto w-full max-w-[18rem] opacity-95 sm:max-w-[24rem] lg:max-w-[30rem]"
         width="736"
         height="143"
         loading="lazy"
         decoding="async"
       >
-      <p class="mt-10 text-[14px] text-white/72">&copy; 2026 Euroharilab. All Rights Reserved.</p>
+      <p class="mt-10 text-[14px] text-white/72">&copy; 2026 EUROHAIRLAB By Dr. Scalp. All Rights Reserved.</p>
     </div>
   </div>
 
