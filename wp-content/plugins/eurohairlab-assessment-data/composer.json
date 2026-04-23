@@ -1,0 +1,13 @@
+{
+  "name": "eurohairlab/assessment-data",
+  "description": "Assessment report PDF generation for Eurohairlab",
+  "type": "wordpress-plugin",
+  "config": {
+    "platform": {
+      "php": "8.2.0"
+    }
+  },
+  "require": {
+    "dompdf/dompdf": "^3.1"
+  }
+}

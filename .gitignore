@@ -1,0 +1,43 @@
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Env / local config
+.env
+.env.*
+!.env.example
+/.htaccess
+/wp-config.php
+/wp-config-local.php
+/wp-config-*.php
+!/wp-config-sample.php
+
+# WordPress generated content
+/wp-content/uploads/
+/wp-content/blogs.dir/
+/wp-content/cache/
+/wp-content/upgrade/
+/wp-content/backup-db/
+/wp-content/backups/
+/wp-content/advanced-cache.php
+/wp-content/object-cache.php
+/wp-content/debug.log
+/wp-content/wflogs/
+
+# Dependencies / runtime artifacts
+node_modules/
+vendor/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Archives / temporary files
+*.zip
+*.tar
+*.gz
+*.log
+*.tmp
+*.swp
