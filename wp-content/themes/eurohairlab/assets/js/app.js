@@ -1120,6 +1120,18 @@ const initAssessmentWizard = () => {
     wizard: root.querySelector('[data-assessment-screen="wizard"]'),
     complete: root.querySelector('[data-assessment-screen="complete"]'),
   };
+
+  const setHtmlHidden = (el, isHidden) => {
+    if (!el) {
+      return;
+    }
+    if (isHidden) {
+      el.setAttribute("hidden", "");
+    } else {
+      el.removeAttribute("hidden");
+    }
+  };
+
   const title = root.querySelector("[data-assessment-title]");
   const optionsWrap = root.querySelector("[data-assessment-options]");
   const formWrap = root.querySelector("[data-assessment-form-wrap]");
@@ -1458,15 +1470,22 @@ const initAssessmentWizard = () => {
 
   const setScreen = (screen) => {
     Object.entries(screens).forEach(([name, node]) => {
-      node?.classList.toggle("hidden", name !== screen);
+      const hide = name !== screen;
+      if (node) {
+        node.classList.toggle("hidden", hide);
+        setHtmlHidden(node, hide);
+      }
     });
 
-    mainHeader?.classList.toggle("hidden", screen !== "complete");
+    const hideMainHeader = screen !== "complete";
+    mainHeader?.classList.toggle("hidden", hideMainHeader);
+    setHtmlHidden(mainHeader ?? null, hideMainHeader);
     window.dispatchEvent(new Event("scroll"));
   };
 
   const closeModal = () => {
     modal?.classList.add("hidden");
+    modal?.setAttribute("hidden", "");
     modal?.setAttribute("aria-hidden", "true");
     document.body.classList.remove("assessment-modal-open");
   };
@@ -1476,6 +1495,7 @@ const initAssessmentWizard = () => {
       return;
     }
     submitLoadingOverlay.classList.remove("hidden");
+    submitLoadingOverlay.removeAttribute("hidden");
     submitLoadingOverlay.setAttribute("aria-hidden", "false");
     document.body.classList.add("assessment-submit-loading-open");
   };
@@ -1485,6 +1505,7 @@ const initAssessmentWizard = () => {
       return;
     }
     submitLoadingOverlay.classList.add("hidden");
+    submitLoadingOverlay.setAttribute("hidden", "");
     submitLoadingOverlay.setAttribute("aria-hidden", "true");
     document.body.classList.remove("assessment-submit-loading-open");
   };
@@ -1496,6 +1517,7 @@ const initAssessmentWizard = () => {
 
     modalDescription.textContent = description;
     modal.classList.remove("hidden");
+    modal.removeAttribute("hidden");
     modal.setAttribute("aria-hidden", "false");
     document.body.classList.add("assessment-modal-open");
   };

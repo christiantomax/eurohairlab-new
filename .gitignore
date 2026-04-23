@@ -13,6 +13,10 @@ Thumbs.db
 /wp-config-*.php
 !/wp-config-sample.php
 
+# Theme Eurohairlab bundled assets — keep tracked in git (do not add rules that ignore these paths):
+#   wp-content/themes/eurohairlab/assets/fonts/
+#   wp-content/themes/eurohairlab/assets/images/
+
 # WordPress generated content
 /wp-content/uploads/
 /wp-content/blogs.dir/

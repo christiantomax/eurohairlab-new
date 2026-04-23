@@ -937,6 +937,25 @@ footer a.site-header__cta:hover {
   transform: scale(1.08);
 }
 
+/* Assessment: Tailwind CDN supplies utility `.hidden`. If it fails or loads late, `display:none`
+   from `.hidden` is missing while theme rules still set `display` — marketing header, wizard,
+   and modal can show incorrectly vs localhost. */
+#assessment-main-header.hidden {
+  display: none !important;
+}
+
+.assessment-page__screen.hidden {
+  display: none !important;
+}
+
+.assessment-modal.hidden {
+  display: none !important;
+}
+
+.assessment-why.hidden {
+  display: none !important;
+}
+
 .assessment-layout {
   display: grid;
   min-height: 100vh;
@@ -2689,24 +2708,6 @@ body.assessment-submit-loading-open {
   .nav-link-animated,
   .nav-link-animated::after,
   .blog-filter-link,
-  .blog-filter-link::after,
-  .footer-link,
-  .footer-link::after {
-    transition: none;
-  }
-
-  .testimonial-track {
-    animation: none;
-  }
-
-  .testimonial-card--marquee-clone {
-    display: none;
-  }
-
-  .programs-home-slider__arrow:hover {
-    background-color: transparent;
-  }
-}
   .blog-filter-link::after,
   .footer-link,
   .footer-link::after {
