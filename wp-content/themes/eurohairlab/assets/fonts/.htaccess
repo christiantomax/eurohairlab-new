@@ -1,0 +1,5 @@
+# Allow @font-face when the page is on another Eurohairlab host (e.g. assessment subdomain).
+# Requires Apache mod_headers and AllowOverride for this directory.
+<IfModule mod_headers.c>
+	Header set Access-Control-Allow-Origin "*"
+</IfModule>

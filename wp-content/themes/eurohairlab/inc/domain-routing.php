@@ -21,6 +21,13 @@ declare(strict_types=1);
  * Asset image URLs: when the HTTP host matches {@see WP_ASSESSMENT_DOMAIN} (regardless of
  * WP_ENV), install media/theme/plugin URLs are rewritten to {@see WP_MAIN_DOMAIN} so images
  * load from the main host while the page is served from the assessment host.
+ *
+ * Theme `assets/css/app.css` uses @font-face with URLs relative to the stylesheet. If that
+ * stylesheet is on {@see WP_MAIN_DOMAIN} while the document is on the assessment host,
+ * browsers block font fetches (CORS). {@see eurohairlab_filter_style_loader_src_assessment_theme_css_same_origin}
+ * serves the bundled theme stylesheet from the assessment origin so Futura loads same-origin.
+ * Optional: `assets/fonts/.htaccess` allows cross-origin fonts on Apache if the stylesheet stays
+ * on the main host.
  */
 
 function eurohairlab_wp_env(): string
@@ -483,6 +490,85 @@ function eurohairlab_filter_template_directory_uri_for_assessment_host(string $t
     return eurohairlab_rewrite_assessment_page_asset_url($template_dir_uri);
 }
 add_filter('template_directory_uri', 'eurohairlab_filter_template_directory_uri_for_assessment_host', 10, 1);
+
+/**
+ * Scheme + host (+ non-default port) for the current HTTP request.
+ */
+function eurohairlab_current_request_origin(): string
+{
+    $host = eurohairlab_current_request_host();
+    if ($host === '') {
+        return '';
+    }
+
+    $scheme = is_ssl() ? 'https' : 'http';
+    $origin = $scheme . '://' . $host;
+    $port = isset($_SERVER['SERVER_PORT']) ? (int) $_SERVER['SERVER_PORT'] : 0;
+    if ($scheme === 'https' && $port > 0 && $port !== 443) {
+        $origin .= ':' . $port;
+    }
+    if ($scheme === 'http' && $port > 0 && $port !== 80) {
+        $origin .= ':' . $port;
+    }
+
+    return $origin;
+}
+
+/**
+ * Origin (scheme://host[:port]) parsed from WP_MAIN_DOMAIN.
+ */
+function eurohairlab_wp_main_domain_origin(): string
+{
+    if (!defined('WP_MAIN_DOMAIN') || trim((string) WP_MAIN_DOMAIN) === '') {
+        return '';
+    }
+
+    $parts = wp_parse_url(rtrim(trim((string) WP_MAIN_DOMAIN), '/'));
+    if (!is_array($parts) || empty($parts['host'])) {
+        return '';
+    }
+
+    $scheme = isset($parts['scheme']) && $parts['scheme'] !== '' ? (string) $parts['scheme'] : 'https';
+    $host = strtolower((string) $parts['host']);
+    $origin = $scheme . '://' . $host;
+    if (!empty($parts['port'])) {
+        $origin .= ':' . (int) $parts['port'];
+    }
+
+    return $origin;
+}
+
+/**
+ * Serve bundled theme app.css from the assessment host so @font-face relative URLs resolve
+ * there and avoid cross-origin font blocking (see theme assets/css/app.css).
+ *
+ * @param string|false $src
+ * @return string|false
+ */
+function eurohairlab_filter_style_loader_src_assessment_theme_css_same_origin($src, string $handle)
+{
+    if ($handle !== 'eurohairlab-theme' || !is_string($src) || $src === '') {
+        return $src;
+    }
+
+    if (!eurohairlab_request_host_matches_wp_assessment_domain()) {
+        return $src;
+    }
+
+    $main_origin = eurohairlab_wp_main_domain_origin();
+    $here = eurohairlab_current_request_origin();
+    if ($main_origin === '' || $here === '' || strcasecmp($main_origin, $here) === 0) {
+        return $src;
+    }
+
+    $len = strlen($main_origin);
+    if ($len > 0 && strncasecmp($src, $main_origin, $len) === 0) {
+        return $here . substr($src, $len);
+    }
+
+    return $src;
+}
+add_filter('style_loader_src', 'eurohairlab_filter_style_loader_src_assessment_theme_css_same_origin', 20, 2);
 
 /**
  * Plugin (and other) assets under wp-content/plugins.
