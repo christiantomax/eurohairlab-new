@@ -27,7 +27,9 @@ Thumbs.db
 
 # Dependencies / runtime artifacts
 node_modules/
-vendor/
+# Do not use bare `vendor/` — it ignores e.g. `wp-content/plugins/meta-box/vendor/` and breaks Meta Box activation (Composer autoload for `MetaBox\…`).
+/wp-content/plugins/eurohairlab-assessment-data/vendor/
+/vendor/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
