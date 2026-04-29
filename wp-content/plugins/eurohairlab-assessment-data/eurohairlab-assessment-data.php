@@ -22,7 +22,7 @@ require_once __DIR__ . '/eh-assessment-submission-logic.php';
 require_once __DIR__ . '/eh-assessment-cekat-webhook-i18n.php';
 require_once __DIR__ . '/eh-assessment-admin-notification-mail.php';
 
-const EH_ASSESSMENT_DATA_VERSION = '1.8.1';
+const EH_ASSESSMENT_DATA_VERSION = '1.8.2';
 const EH_ASSESSMENT_REPORT_PDF_MASKING_ID_MAX_LENGTH = 64;
 const EH_ASSESSMENT_AGENT_MASKING_ID_MAX_LENGTH = 64;
 const EH_ASSESSMENT_AGENT_CODE_MAX_LENGTH = 64;
@@ -399,10 +399,10 @@ function eh_assessment_report_pdf_template_row_from_post(): array
 
         return $v;
     };
-    $text = static function (string $key): string {
+    $html = static function (string $key): string {
         $v = isset($_POST[$key]) ? wp_unslash((string) $_POST[$key]) : '';
 
-        return sanitize_textarea_field($v);
+        return wp_kses_post($v);
     };
     $img = static function (string $key): string {
         $v = isset($_POST[$key]) ? wp_unslash((string) $_POST[$key]) : '';
@@ -426,25 +426,29 @@ function eh_assessment_report_pdf_template_row_from_post(): array
     return [
         'masking_id' => $masking_id,
         'report_title' => $str('rpt_report_title', 255),
-        'diagnosis_name' => $str('rpt_diagnosis_name', 255),
-        'diagnosis_description' => $text('rpt_diagnosis_description'),
-        'clinical_desc_1' => $text('rpt_clinical_desc_1'),
-        'clinical_desc_2' => $text('rpt_clinical_desc_2'),
-        'clinical_desc_3' => $text('rpt_clinical_desc_3'),
-        'risk_delayed_description' => $text('rpt_risk_delayed_description'),
-        'risk_untreated_image' => $img('rpt_risk_untreated_image'),
-        'risk_untreated_description' => $text('rpt_risk_untreated_description'),
-        'treatment_rec_1_title' => $str('rpt_treatment_rec_1_title', 255),
-        'treatment_rec_1_description' => $text('rpt_treatment_rec_1_description'),
-        'treatment_rec_1_image' => $img('rpt_treatment_rec_1_image'),
-        'phase_of_hair_growth_male_image' => $img('rpt_phase_of_hair_growth_male_image'),
-        'phase_of_hair_growth_female_image' => $img('rpt_phase_of_hair_growth_female_image'),
-        'treatment_rec_2_title' => $str('rpt_treatment_rec_2_title', 255),
-        'treatment_rec_2_description' => $text('rpt_treatment_rec_2_description'),
-        'treatment_rec_2_image' => $img('rpt_treatment_rec_2_image'),
-        'treatment_rec_3_title' => $str('rpt_treatment_rec_3_title', 255),
-        'treatment_rec_3_description' => $text('rpt_treatment_rec_3_description'),
-        'treatment_rec_3_image' => $img('rpt_treatment_rec_3_image'),
+        'report_header_title' => $str('rpt_report_header_title', 255),
+        'subtitle' => $str('rpt_subtitle', 255),
+        'greeting_description' => $html('rpt_greeting_description'),
+        'diagnosis_name' => $html('rpt_diagnosis_name'),
+        'title_condition_explanation' => $str('rpt_title_condition_explanation', 255),
+        'description_condition_explanation' => $html('rpt_description_condition_explanation'),
+        'title_clinical_knowledge' => $str('rpt_title_clinical_knowledge', 255),
+        'subtitle_clinical_knowledge' => $str('rpt_subtitle_clinical_knowledge', 255),
+        'image_clinical_knowledge' => $img('rpt_image_clinical_knowledge'),
+        'description_clinical_knowledge' => $html('rpt_description_clinical_knowledge'),
+        'title_evaluation_urgency' => $str('rpt_title_evaluation_urgency', 255),
+        'description_evaluation_urgency' => $html('rpt_description_evaluation_urgency'),
+        'title_treatment_journey' => $str('rpt_title_treatment_journey', 255),
+        'description_treatment_journey' => $html('rpt_description_treatment_journey'),
+        'image_treatment_journey' => $img('rpt_image_treatment_journey'),
+        'title_recommendation_approach' => $str('rpt_title_recommendation_approach', 255),
+        'description_recommendation_approach' => $html('rpt_description_recommendation_approach'),
+        'detail_recommendation_approach' => $html('rpt_detail_recommendation_approach'),
+        'bottom_description_recommendation_approach' => $html('rpt_bottom_description_recommendation_approach'),
+        'title_next_steps' => $str('rpt_title_next_steps', 255),
+        'description_next_steps' => $html('rpt_description_next_steps'),
+        'title_medical_notes' => $str('rpt_title_medical_notes', 255),
+        'description_medical_notes' => $html('rpt_description_medical_notes'),
     ];
 }
 
@@ -2340,25 +2344,29 @@ function eh_assessment_create_tables(): void
         id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
         masking_id VARCHAR(64) NOT NULL,
         report_title VARCHAR(255) NOT NULL DEFAULT '',
-        diagnosis_name VARCHAR(255) NOT NULL DEFAULT '',
-        diagnosis_description LONGTEXT NULL,
-        clinical_desc_1 LONGTEXT NULL,
-        clinical_desc_2 LONGTEXT NULL,
-        clinical_desc_3 LONGTEXT NULL,
-        risk_delayed_description LONGTEXT NULL,
-        risk_untreated_image VARCHAR(500) NOT NULL DEFAULT '',
-        risk_untreated_description LONGTEXT NULL,
-        treatment_rec_1_title VARCHAR(255) NOT NULL DEFAULT '',
-        treatment_rec_1_description LONGTEXT NULL,
-        treatment_rec_1_image VARCHAR(500) NOT NULL DEFAULT '',
-        phase_of_hair_growth_male_image VARCHAR(500) NOT NULL DEFAULT '',
-        phase_of_hair_growth_female_image VARCHAR(500) NOT NULL DEFAULT '',
-        treatment_rec_2_title VARCHAR(255) NOT NULL DEFAULT '',
-        treatment_rec_2_description LONGTEXT NULL,
-        treatment_rec_2_image VARCHAR(500) NOT NULL DEFAULT '',
-        treatment_rec_3_title VARCHAR(255) NOT NULL DEFAULT '',
-        treatment_rec_3_description LONGTEXT NULL,
-        treatment_rec_3_image VARCHAR(500) NOT NULL DEFAULT '',
+        report_header_title VARCHAR(255) NOT NULL DEFAULT '',
+        subtitle VARCHAR(255) NOT NULL DEFAULT '',
+        greeting_description LONGTEXT NULL,
+        diagnosis_name LONGTEXT NULL,
+        title_condition_explanation VARCHAR(255) NOT NULL DEFAULT '',
+        description_condition_explanation LONGTEXT NULL,
+        title_clinical_knowledge VARCHAR(255) NOT NULL DEFAULT '',
+        subtitle_clinical_knowledge VARCHAR(255) NOT NULL DEFAULT '',
+        image_clinical_knowledge VARCHAR(500) NOT NULL DEFAULT '',
+        description_clinical_knowledge LONGTEXT NULL,
+        title_evaluation_urgency VARCHAR(255) NOT NULL DEFAULT '',
+        description_evaluation_urgency LONGTEXT NULL,
+        title_treatment_journey VARCHAR(255) NOT NULL DEFAULT '',
+        description_treatment_journey LONGTEXT NULL,
+        image_treatment_journey VARCHAR(500) NOT NULL DEFAULT '',
+        title_recommendation_approach VARCHAR(255) NOT NULL DEFAULT '',
+        description_recommendation_approach LONGTEXT NULL,
+        detail_recommendation_approach LONGTEXT NULL,
+        bottom_description_recommendation_approach LONGTEXT NULL,
+        title_next_steps VARCHAR(255) NOT NULL DEFAULT '',
+        description_next_steps LONGTEXT NULL,
+        title_medical_notes VARCHAR(255) NOT NULL DEFAULT '',
+        description_medical_notes LONGTEXT NULL,
         deleted_at DATETIME NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -2713,6 +2721,181 @@ function eh_assessment_migrate_v191_report_pdf_template_treatment_rec_3(): void
 }
 
 /**
+ * Add report v2 content columns for Pre-Consultation report layout.
+ */
+function eh_assessment_migrate_v200_report_pdf_template_precon_fields(): void
+{
+    if ((string) get_option('eh_assessment_v200_rpt_tpl_precon_fields', '') === '1') {
+        return;
+    }
+
+    global $wpdb;
+    $table = eh_assessment_report_pdf_template_table_name();
+    $found = (string) $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table));
+    if ($found !== $table) {
+        update_option('eh_assessment_v200_rpt_tpl_precon_fields', '1');
+
+        return;
+    }
+
+    $columns = [
+        'subtitle' => "ALTER TABLE `{$table}` ADD COLUMN subtitle VARCHAR(255) NOT NULL DEFAULT '' AFTER report_title",
+        'greeting_description' => "ALTER TABLE `{$table}` ADD COLUMN greeting_description LONGTEXT NULL AFTER subtitle",
+        'title_condition_explanation' => "ALTER TABLE `{$table}` ADD COLUMN title_condition_explanation VARCHAR(255) NOT NULL DEFAULT '' AFTER diagnosis_name",
+        'description_condition_explanation' => "ALTER TABLE `{$table}` ADD COLUMN description_condition_explanation LONGTEXT NULL AFTER title_condition_explanation",
+        'title_clinical_knowledge' => "ALTER TABLE `{$table}` ADD COLUMN title_clinical_knowledge VARCHAR(255) NOT NULL DEFAULT '' AFTER description_condition_explanation",
+        'subtitle_clinical_knowledge' => "ALTER TABLE `{$table}` ADD COLUMN subtitle_clinical_knowledge VARCHAR(255) NOT NULL DEFAULT '' AFTER title_clinical_knowledge",
+        'image_clinical_knowledge' => "ALTER TABLE `{$table}` ADD COLUMN image_clinical_knowledge VARCHAR(500) NOT NULL DEFAULT '' AFTER subtitle_clinical_knowledge",
+        'description_clinical_knowledge' => "ALTER TABLE `{$table}` ADD COLUMN description_clinical_knowledge LONGTEXT NULL AFTER image_clinical_knowledge",
+        'title_evaluation_urgency' => "ALTER TABLE `{$table}` ADD COLUMN title_evaluation_urgency VARCHAR(255) NOT NULL DEFAULT '' AFTER description_clinical_knowledge",
+        'description_evaluation_urgency' => "ALTER TABLE `{$table}` ADD COLUMN description_evaluation_urgency LONGTEXT NULL AFTER title_evaluation_urgency",
+        'title_treatment_journey' => "ALTER TABLE `{$table}` ADD COLUMN title_treatment_journey VARCHAR(255) NOT NULL DEFAULT '' AFTER description_evaluation_urgency",
+        'description_treatment_journey' => "ALTER TABLE `{$table}` ADD COLUMN description_treatment_journey LONGTEXT NULL AFTER title_treatment_journey",
+        'image_treatment_journey' => "ALTER TABLE `{$table}` ADD COLUMN image_treatment_journey VARCHAR(500) NOT NULL DEFAULT '' AFTER description_treatment_journey",
+        'title_recommendation_approach' => "ALTER TABLE `{$table}` ADD COLUMN title_recommendation_approach VARCHAR(255) NOT NULL DEFAULT '' AFTER image_treatment_journey",
+        'description_recommendation_approach' => "ALTER TABLE `{$table}` ADD COLUMN description_recommendation_approach LONGTEXT NULL AFTER title_recommendation_approach",
+        'detail_recommendation_approach' => "ALTER TABLE `{$table}` ADD COLUMN detail_recommendation_approach LONGTEXT NULL AFTER description_recommendation_approach",
+        'bottom_description_recommendation_approach' => "ALTER TABLE `{$table}` ADD COLUMN bottom_description_recommendation_approach LONGTEXT NULL AFTER detail_recommendation_approach",
+        'title_next_steps' => "ALTER TABLE `{$table}` ADD COLUMN title_next_steps VARCHAR(255) NOT NULL DEFAULT '' AFTER bottom_description_recommendation_approach",
+        'description_next_steps' => "ALTER TABLE `{$table}` ADD COLUMN description_next_steps LONGTEXT NULL AFTER title_next_steps",
+        'title_medical_notes' => "ALTER TABLE `{$table}` ADD COLUMN title_medical_notes VARCHAR(255) NOT NULL DEFAULT '' AFTER description_next_steps",
+        'description_medical_notes' => "ALTER TABLE `{$table}` ADD COLUMN description_medical_notes LONGTEXT NULL AFTER title_medical_notes",
+    ];
+
+    foreach ($columns as $column => $sql) {
+        if (!eh_assessment_report_pdf_template_table_has_column($column)) {
+            $wpdb->query($sql);
+        }
+    }
+
+    update_option('eh_assessment_v200_rpt_tpl_precon_fields', '1');
+}
+
+/**
+ * Drop legacy report template columns no longer used by the new Pre-Consultation layout.
+ */
+function eh_assessment_migrate_v201_report_pdf_template_drop_legacy_fields(): void
+{
+    if ((string) get_option('eh_assessment_v201_rpt_tpl_drop_legacy_fields', '') === '1') {
+        return;
+    }
+
+    global $wpdb;
+    $table = eh_assessment_report_pdf_template_table_name();
+    $found = (string) $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table));
+    if ($found !== $table) {
+        update_option('eh_assessment_v201_rpt_tpl_drop_legacy_fields', '1');
+
+        return;
+    }
+
+    $legacyColumns = [
+        'diagnosis_description',
+        'clinical_desc_1',
+        'clinical_desc_2',
+        'clinical_desc_3',
+        'risk_delayed_description',
+        'risk_untreated_image',
+        'risk_untreated_description',
+        'treatment_rec_1_title',
+        'treatment_rec_1_description',
+        'treatment_rec_1_image',
+        'phase_of_hair_growth_male_image',
+        'phase_of_hair_growth_female_image',
+        'treatment_rec_2_title',
+        'treatment_rec_2_description',
+        'treatment_rec_2_image',
+        'treatment_rec_3_title',
+        'treatment_rec_3_description',
+        'treatment_rec_3_image',
+    ];
+
+    foreach ($legacyColumns as $column) {
+        if (eh_assessment_report_pdf_template_table_has_column($column)) {
+            $wpdb->query("ALTER TABLE `{$table}` DROP COLUMN `{$column}`");
+        }
+    }
+
+    update_option('eh_assessment_v201_rpt_tpl_drop_legacy_fields', '1');
+}
+
+/**
+ * One-time seed of Pre-Consultation template fields for the eight default masking_id rows (Reports 1–8).
+ * To re-run: delete option `eh_assessment_v202_rpt_tpl_seed_precon_defaults` from the options table.
+ */
+function eh_assessment_migrate_v202_report_pdf_template_seed_precon_defaults(): void
+{
+    if ((string) get_option('eh_assessment_v202_rpt_tpl_seed_precon_defaults', '') === '1') {
+        return;
+    }
+
+    global $wpdb;
+    $table = eh_assessment_report_pdf_template_table_name();
+    $found = (string) $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table));
+    if ($found !== $table) {
+        update_option('eh_assessment_v202_rpt_tpl_seed_precon_defaults', '1');
+
+        return;
+    }
+
+    if (!eh_assessment_report_pdf_template_table_has_column('greeting_description')) {
+        return;
+    }
+
+    require_once __DIR__ . '/eh-assessment-seed-precon-report-templates.php';
+    $seeds = eh_assessment_precon_report_pdf_template_seed_rows();
+    $now = eh_assessment_current_mysql_time();
+
+    foreach ($seeds as $masking_id => $row) {
+        $id = (int) $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT id FROM `{$table}` WHERE masking_id = %s AND deleted_at IS NULL LIMIT 1",
+                $masking_id
+            )
+        );
+        if ($id <= 0) {
+            continue;
+        }
+
+        $payload = array_merge($row, ['updated_at' => $now]);
+        $formats = array_fill(0, count($payload), '%s');
+        $wpdb->update($table, $payload, ['id' => $id], $formats, ['%d']);
+    }
+
+    update_option('eh_assessment_v202_rpt_tpl_seed_precon_defaults', '1');
+}
+
+/**
+ * Pre-Consultation PDF: small caps line above the gold title (e.g. HAIR HEALTH). Renamed admin label: report name vs header title.
+ */
+function eh_assessment_migrate_v203_report_pdf_template_report_header_title(): void
+{
+    if ((string) get_option('eh_assessment_v203_rpt_tpl_report_header_title', '') === '1') {
+        return;
+    }
+
+    global $wpdb;
+    $table = eh_assessment_report_pdf_template_table_name();
+    $found = (string) $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table));
+    if ($found !== $table) {
+        update_option('eh_assessment_v203_rpt_tpl_report_header_title', '1');
+
+        return;
+    }
+
+    if (!eh_assessment_report_pdf_template_table_has_column('report_header_title')) {
+        $wpdb->query(
+            "ALTER TABLE `{$table}` ADD COLUMN report_header_title VARCHAR(255) NOT NULL DEFAULT '' AFTER report_title"
+        );
+    }
+    $wpdb->query(
+        "UPDATE `{$table}` SET report_header_title = 'HAIR HEALTH' WHERE report_header_title = ''"
+    );
+
+    update_option('eh_assessment_v203_rpt_tpl_report_header_title', '1');
+}
+
+/**
  * Remove submission soft-delete: UNIQUE masked_id must stay global; trash rows blocked new IDs.
  */
 function eh_assessment_migrate_v179_drop_submission_deleted_at(): void
@@ -2945,6 +3128,10 @@ function eh_assessment_activate(): void
     eh_assessment_migrate_v178_report_pdf_template_phase_images();
     eh_assessment_migrate_v180_report_pdf_template_risk_untreated_image();
     eh_assessment_migrate_v191_report_pdf_template_treatment_rec_3();
+    eh_assessment_migrate_v200_report_pdf_template_precon_fields();
+    eh_assessment_migrate_v201_report_pdf_template_drop_legacy_fields();
+    eh_assessment_migrate_v203_report_pdf_template_report_header_title();
+    eh_assessment_migrate_v202_report_pdf_template_seed_precon_defaults();
     eh_assessment_migrate_v179_drop_submission_deleted_at();
     eh_assessment_migrate_v180_report_pdf_template_risk_untreated_image();
     eh_assessment_migrate_v181_branch_outlet_display_name();
@@ -2973,6 +3160,10 @@ function eh_assessment_maybe_upgrade(): void
     eh_assessment_migrate_v178_report_pdf_template_phase_images();
     eh_assessment_migrate_v180_report_pdf_template_risk_untreated_image();
     eh_assessment_migrate_v191_report_pdf_template_treatment_rec_3();
+    eh_assessment_migrate_v200_report_pdf_template_precon_fields();
+    eh_assessment_migrate_v201_report_pdf_template_drop_legacy_fields();
+    eh_assessment_migrate_v203_report_pdf_template_report_header_title();
+    eh_assessment_migrate_v202_report_pdf_template_seed_precon_defaults();
     eh_assessment_migrate_v179_drop_submission_deleted_at();
     eh_assessment_migrate_v181_branch_outlet_display_name();
 
@@ -4035,14 +4226,23 @@ function eh_assessment_enqueue_report_pdf_templates_admin_scripts(string $hook_s
     }
 
     wp_enqueue_media();
+    wp_enqueue_editor();
 
     wp_enqueue_script(
         'eh-report-pdf-templates-admin',
         plugins_url('assets/report-pdf-templates-admin.js', __FILE__),
-        ['jquery', 'media-views'],
+        ['jquery', 'media-views', 'editor'],
         filemtime(__DIR__ . '/assets/report-pdf-templates-admin.js'),
         true
     );
+
+    $wysiwyg_field_ids = [];
+    foreach (eh_assessment_report_pdf_template_flat_fields() as $f) {
+        if (($f[2] ?? '') === 'wysiwyg') {
+            $wysiwyg_field_ids[] = (string) ($f[0] ?? '');
+        }
+    }
+
     wp_localize_script(
         'eh-report-pdf-templates-admin',
         'ehReportPdfTemplatesAdmin',
@@ -4052,6 +4252,7 @@ function eh_assessment_enqueue_report_pdf_templates_admin_scripts(string $hook_s
             'strAddTitle' => 'New template',
             'strEditTitle' => 'Edit template',
             'strLoadError' => 'Could not load this template.',
+            'wysiwygFieldIds' => $wysiwyg_field_ids,
         ]
     );
 }
@@ -4412,7 +4613,7 @@ function eh_assessment_submission_quick_view_text(array $submission, array $payl
 
 /**
  * Diagnosis copy for the PDF "CLINICAL DIAGNOSIS" block ({@see report-preview.php}):
- * template `diagnosis_name` / `diagnosis_description`, same template row resolution as {@see eh_assessment_build_report_data()}.
+ * template `diagnosis_name` / `subtitle`, same template row resolution as {@see eh_assessment_build_report_data()}.
  *
  * @return array{title: string, subtitle: string}
  */
@@ -4436,7 +4637,7 @@ function eh_assessment_clinical_diagnosis_from_pdf_template(int $reportType): ar
 
     return [
         'title' => trim((string) ($tplRow['diagnosis_name'] ?? '')),
-        'subtitle' => trim((string) ($tplRow['diagnosis_description'] ?? '')),
+        'subtitle' => trim((string) ($tplRow['subtitle'] ?? '')),
     ];
 }
 
@@ -4567,9 +4768,8 @@ function eh_assessment_build_report_data(array $submission): array
         $pdfTemplateMeta = [
             'id' => (int) ($tplRow['id'] ?? 0),
             'masking_id' => (string) ($tplRow['masking_id'] ?? ''),
-            'phase_of_hair_growth_male_image' => trim((string) ($tplRow['phase_of_hair_growth_male_image'] ?? '')),
-            'phase_of_hair_growth_female_image' => trim((string) ($tplRow['phase_of_hair_growth_female_image'] ?? '')),
-            'risk_untreated_image' => trim((string) ($tplRow['risk_untreated_image'] ?? '')),
+            'image_clinical_knowledge' => trim((string) ($tplRow['image_clinical_knowledge'] ?? '')),
+            'image_treatment_journey' => trim((string) ($tplRow['image_treatment_journey'] ?? '')),
         ];
 
         $rt = trim((string) ($tplRow['report_title'] ?? ''));
@@ -4578,69 +4778,16 @@ function eh_assessment_build_report_data(array $submission): array
             $reportTitle = $cleaned !== '' ? $cleaned : $rt;
         }
 
-        $dn = trim((string) ($tplRow['diagnosis_name'] ?? ''));
+        $dn = trim(wp_strip_all_tags((string) ($tplRow['diagnosis_name'] ?? '')));
         if ($dn !== '') {
             $diagTitle = $dn;
         }
 
-        $dd = trim((string) ($tplRow['diagnosis_description'] ?? ''));
+        $dd = trim((string) ($tplRow['subtitle'] ?? ''));
         if ($dd !== '') {
             $diagSubtitle = $dd;
         }
-
-        $mergedClinical = [];
-        foreach ([0, 1, 2] as $i) {
-            $col = 'clinical_desc_' . ($i + 1);
-            $raw = (string) ($tplRow[$col] ?? '');
-            $parsed = eh_assessment_pdf_parse_clinical_card($raw, $defaultClinicalCards[$i]['title'], $defaultClinicalCards[$i]['items']);
-            $mergedClinical[] = [
-                'title' => $parsed['title'],
-                'items' => $parsed['items'],
-                'accent' => $defaultClinicalCards[$i]['accent'],
-            ];
-        }
-        $clinicalCards = $mergedClinical;
-
-        $riskDelayed = eh_assessment_pdf_text_to_bullet_items((string) ($tplRow['risk_delayed_description'] ?? ''), $defaultRiskDelayed);
-        $riskUntreated = eh_assessment_pdf_text_to_bullet_items((string) ($tplRow['risk_untreated_description'] ?? ''), $defaultRiskUntreated);
-
-        $t1img = trim((string) ($tplRow['treatment_rec_1_image'] ?? ''));
-        $t2img = trim((string) ($tplRow['treatment_rec_2_image'] ?? ''));
-        $t3img = trim((string) ($tplRow['treatment_rec_3_image'] ?? ''));
-        $treatments = [
-            [
-                'title' => trim((string) ($tplRow['treatment_rec_1_title'] ?? '')),
-                'body' => trim((string) ($tplRow['treatment_rec_1_description'] ?? '')),
-                'image' => $t1img,
-            ],
-            [
-                'title' => trim((string) ($tplRow['treatment_rec_2_title'] ?? '')),
-                'body' => trim((string) ($tplRow['treatment_rec_2_description'] ?? '')),
-                'image' => $t2img,
-            ],
-            [
-                'title' => trim((string) ($tplRow['treatment_rec_3_title'] ?? '')),
-                'body' => trim((string) ($tplRow['treatment_rec_3_description'] ?? '')),
-                'image' => $t3img,
-            ],
-        ];
     }
-
-    $conditionExplanationItems = [
-        $report2UrgencyText,
-        $report2PsychologicalText,
-    ];
-    if ($reportType === 2) {
-        array_unshift($conditionExplanationItems, $report2ConditionText);
-    }
-    if (!isset($clinicalCards[2]) || !is_array($clinicalCards[2])) {
-        $clinicalCards[2] = [];
-    }
-    $clinicalCards[2] = [
-        'title' => 'PENJELASAN KONDISI',
-        'items' => $conditionExplanationItems,
-        'accent' => 'gold',
-    ];
 
     $out = [
         'report_type' => $reportType,
@@ -4704,6 +4851,7 @@ function eh_assessment_build_report_data(array $submission): array
 
     if ($tplRow !== null) {
         $out['pdf_template'] = $pdfTemplateMeta;
+        $out['pdf_template_row'] = $tplRow;
         $out['treatments'] = $treatments;
     }
 
@@ -5051,6 +5199,10 @@ function eh_assessment_handle_admin_actions(): void
         eh_assessment_migrate_v179_drop_submission_deleted_at();
         eh_assessment_migrate_v180_report_pdf_template_risk_untreated_image();
         eh_assessment_migrate_v191_report_pdf_template_treatment_rec_3();
+        eh_assessment_migrate_v200_report_pdf_template_precon_fields();
+        eh_assessment_migrate_v201_report_pdf_template_drop_legacy_fields();
+        eh_assessment_migrate_v203_report_pdf_template_report_header_title();
+        eh_assessment_migrate_v202_report_pdf_template_seed_precon_defaults();
         eh_assessment_migrate_v181_branch_outlet_display_name();
         $cekat = eh_assessment_parse_cekat_row_from_post();
         if (is_wp_error($cekat)) {
@@ -5746,24 +5898,29 @@ function eh_assessment_handle_admin_actions(): void
 
         $row_payload = [
             'report_title' => $data['report_title'],
+            'report_header_title' => $data['report_header_title'] !== '' ? $data['report_header_title'] : 'HAIR HEALTH',
+            'subtitle' => $data['subtitle'],
+            'greeting_description' => $data['greeting_description'],
             'diagnosis_name' => $data['diagnosis_name'],
-            'diagnosis_description' => $data['diagnosis_description'],
-            'clinical_desc_1' => $data['clinical_desc_1'],
-            'clinical_desc_2' => $data['clinical_desc_2'],
-            'clinical_desc_3' => $data['clinical_desc_3'],
-            'risk_delayed_description' => $data['risk_delayed_description'],
-            'risk_untreated_image' => $data['risk_untreated_image'],
-            'treatment_rec_1_title' => $data['treatment_rec_1_title'],
-            'treatment_rec_1_description' => $data['treatment_rec_1_description'],
-            'treatment_rec_1_image' => $data['treatment_rec_1_image'],
-            'phase_of_hair_growth_male_image' => $data['phase_of_hair_growth_male_image'],
-            'phase_of_hair_growth_female_image' => $data['phase_of_hair_growth_female_image'],
-            'treatment_rec_2_title' => $data['treatment_rec_2_title'],
-            'treatment_rec_2_description' => $data['treatment_rec_2_description'],
-            'treatment_rec_2_image' => $data['treatment_rec_2_image'],
-            'treatment_rec_3_title' => $data['treatment_rec_3_title'],
-            'treatment_rec_3_description' => $data['treatment_rec_3_description'],
-            'treatment_rec_3_image' => $data['treatment_rec_3_image'],
+            'title_condition_explanation' => $data['title_condition_explanation'],
+            'description_condition_explanation' => $data['description_condition_explanation'],
+            'title_clinical_knowledge' => $data['title_clinical_knowledge'],
+            'subtitle_clinical_knowledge' => $data['subtitle_clinical_knowledge'],
+            'image_clinical_knowledge' => $data['image_clinical_knowledge'],
+            'description_clinical_knowledge' => $data['description_clinical_knowledge'],
+            'title_evaluation_urgency' => $data['title_evaluation_urgency'],
+            'description_evaluation_urgency' => $data['description_evaluation_urgency'],
+            'title_treatment_journey' => $data['title_treatment_journey'],
+            'description_treatment_journey' => $data['description_treatment_journey'],
+            'image_treatment_journey' => $data['image_treatment_journey'],
+            'title_recommendation_approach' => $data['title_recommendation_approach'],
+            'description_recommendation_approach' => $data['description_recommendation_approach'],
+            'detail_recommendation_approach' => $data['detail_recommendation_approach'],
+            'bottom_description_recommendation_approach' => $data['bottom_description_recommendation_approach'],
+            'title_next_steps' => $data['title_next_steps'],
+            'description_next_steps' => $data['description_next_steps'],
+            'title_medical_notes' => $data['title_medical_notes'],
+            'description_medical_notes' => $data['description_medical_notes'],
             'updated_at' => $now,
         ];
         $formats = array_fill(0, count($row_payload), '%s');
@@ -6703,6 +6860,146 @@ function eh_assessment_render_report_preview_page(): void
     exit;
 }
 
+/**
+ * Pre-Consultation report template form: grouped sections (modal add/edit).
+ *
+ * @return list<array{title: string, fields: list<array{0: string, 1: string, 2: string, 3: string}>}>
+ */
+function eh_assessment_report_pdf_template_form_sections(): array
+{
+    return [
+        [
+            'title' => 'Report name',
+            'fields' => [
+                ['rpt_report_title', 'Report name', 'text', 'report_title'],
+            ],
+        ],
+        [
+            'title' => 'Section header',
+            'fields' => [
+                ['rpt_report_header_title', 'Report header title', 'text', 'report_header_title'],
+                ['rpt_subtitle', 'Subtitle', 'text', 'subtitle'],
+            ],
+        ],
+        [
+            'title' => 'Section greeting',
+            'fields' => [
+                ['rpt_greeting_description', 'Greeting description', 'wysiwyg', 'greeting_description'],
+            ],
+        ],
+        [
+            'title' => 'Section diagnosis',
+            'fields' => [
+                ['rpt_diagnosis_name', 'Diagnosis name', 'wysiwyg', 'diagnosis_name'],
+            ],
+        ],
+        [
+            'title' => 'Section condition explanation',
+            'fields' => [
+                ['rpt_title_condition_explanation', 'Title condition explanation', 'text', 'title_condition_explanation'],
+                ['rpt_description_condition_explanation', 'Description condition explanation', 'wysiwyg', 'description_condition_explanation'],
+            ],
+        ],
+        [
+            'title' => 'Section clinical knowledge',
+            'fields' => [
+                ['rpt_title_clinical_knowledge', 'Title clinical knowledge', 'text', 'title_clinical_knowledge'],
+                ['rpt_subtitle_clinical_knowledge', 'Subtitle clinical knowledge', 'text', 'subtitle_clinical_knowledge'],
+                ['rpt_image_clinical_knowledge', 'Image clinical knowledge', 'image', 'image_clinical_knowledge'],
+                ['rpt_description_clinical_knowledge', 'Description clinical knowledge', 'wysiwyg', 'description_clinical_knowledge'],
+            ],
+        ],
+        [
+            'title' => 'Section evaluation urgency',
+            'fields' => [
+                ['rpt_title_evaluation_urgency', 'Title evaluation urgency', 'text', 'title_evaluation_urgency'],
+                ['rpt_description_evaluation_urgency', 'Description evaluation urgency', 'wysiwyg', 'description_evaluation_urgency'],
+            ],
+        ],
+        [
+            'title' => 'Section treatment journey',
+            'fields' => [
+                ['rpt_title_treatment_journey', 'Title treatment journey', 'text', 'title_treatment_journey'],
+                ['rpt_description_treatment_journey', 'Description treatment journey', 'wysiwyg', 'description_treatment_journey'],
+                ['rpt_image_treatment_journey', 'Image treatment journey', 'image', 'image_treatment_journey'],
+            ],
+        ],
+        [
+            'title' => 'Section recommendation approach',
+            'fields' => [
+                ['rpt_title_recommendation_approach', 'Title recommendation approach', 'text', 'title_recommendation_approach'],
+                ['rpt_description_recommendation_approach', 'Description recommendation approach', 'wysiwyg', 'description_recommendation_approach'],
+                ['rpt_detail_recommendation_approach', 'Detail recommendation approach', 'wysiwyg', 'detail_recommendation_approach'],
+                ['rpt_bottom_description_recommendation_approach', 'Bottom description recommendation approach', 'wysiwyg', 'bottom_description_recommendation_approach'],
+            ],
+        ],
+        [
+            'title' => 'Section next steps',
+            'fields' => [
+                ['rpt_title_next_steps', 'Title next steps', 'text', 'title_next_steps'],
+                ['rpt_description_next_steps', 'Description next steps', 'wysiwyg', 'description_next_steps'],
+            ],
+        ],
+        [
+            'title' => 'Section medical notes',
+            'fields' => [
+                ['rpt_title_medical_notes', 'Title medical notes', 'text', 'title_medical_notes'],
+            ],
+        ],
+        [
+            'title' => 'Section footer statement',
+            'fields' => [
+                ['rpt_description_medical_notes', 'Footer statement', 'wysiwyg', 'description_medical_notes'],
+            ],
+        ],
+    ];
+}
+
+/**
+ * @return list<array{0: string, 1: string, 2: string, 3: string}>
+ */
+function eh_assessment_report_pdf_template_flat_fields(): array
+{
+    $out = [];
+    foreach (eh_assessment_report_pdf_template_form_sections() as $section) {
+        foreach ($section['fields'] as $field) {
+            $out[] = $field;
+        }
+    }
+
+    return $out;
+}
+
+/**
+ * @param array{0: string, 1: string, 2: string, 3: string} $f
+ */
+function eh_assessment_render_report_pdf_template_field_row(array $f): void
+{
+    [$fid, $label, $type] = $f;
+    echo '<tr><th scope="row"><label for="' . esc_attr($fid) . '">' . esc_html($label) . '</label></th><td>';
+    if ($type === 'textarea') {
+        echo '<textarea name="' . esc_attr($fid) . '" id="' . esc_attr($fid) . '" class="large-text" rows="3" cols="50"></textarea>';
+    } elseif ($type === 'wysiwyg') {
+        echo '<div class="eh-rpt-wysiwyg-wrap" style="max-width:100%;">';
+        echo '<textarea name="' . esc_attr($fid) . '" id="' . esc_attr($fid) . '" class="large-text eh-rpt-wysiwyg" rows="5" cols="50"></textarea>';
+        echo '</div>';
+        echo '<p class="description" style="margin-top:6px;">' . esc_html('Rich text; stored HTML is sanitized on save (same as post content).') . '</p>';
+    } elseif ($type === 'image') {
+        echo '<input type="hidden" name="' . esc_attr($fid) . '" id="' . esc_attr($fid) . '" value="" autocomplete="off" />';
+        echo '<div id="' . esc_attr($fid) . '_preview_wrap" class="eh-rpt-media-preview-wrap" style="margin:0 0 10px;">';
+        echo '<img id="' . esc_attr($fid) . '_preview" src="" alt="" style="max-height:160px;max-width:100%;border:1px solid #c3c4c7;border-radius:6px;display:none;" />';
+        echo '</div>';
+        echo '<p class="eh-rpt-media-actions" style="margin:0;">';
+        echo '<button type="button" class="button eh-rpt-media-select" data-target="' . esc_attr($fid) . '">' . esc_html('Select or upload image') . '</button> ';
+        echo '<button type="button" class="button eh-rpt-media-clear" data-target="' . esc_attr($fid) . '">' . esc_html('Remove image') . '</button>';
+        echo '</p>';
+        echo '<p class="description" style="margin-top:8px;">' . esc_html('Stored value is the image URL (suitable for PDF generation).') . '</p>';
+    } else {
+        echo '<input name="' . esc_attr($fid) . '" id="' . esc_attr($fid) . '" type="text" class="large-text" value="" autocomplete="off" />';
+    }
+    echo '</td></tr>';
+}
+
 function eh_assessment_render_report_pdf_templates_page(): void
 {
     if (!eh_assessment_current_user_can_access_admin()) {
@@ -6712,39 +7009,9 @@ function eh_assessment_render_report_pdf_templates_page(): void
     global $wpdb;
     $table = eh_assessment_report_pdf_template_table_name();
 
-    $rpt_fields = [
-        ['rpt_report_title', 'Report title', 'text', 'report_title'],
-        ['rpt_diagnosis_name', 'Diagnosis name', 'text', 'diagnosis_name'],
-        ['rpt_diagnosis_description', 'Diagnosis description', 'textarea', 'diagnosis_description'],
-        ['rpt_phase_of_hair_growth_male_image', 'PHASE OF HAIR GROWTH image (male)', 'image', 'phase_of_hair_growth_male_image'],
-        ['rpt_phase_of_hair_growth_female_image', 'PHASE OF HAIR GROWTH image (female)', 'image', 'phase_of_hair_growth_female_image'],
-        ['rpt_clinical_desc_1', 'Clinical description 1', 'textarea', 'clinical_desc_1'],
-        ['rpt_clinical_desc_2', 'Clinical description 2', 'textarea', 'clinical_desc_2'],
-        ['rpt_clinical_desc_3', 'Clinical description 3', 'textarea', 'clinical_desc_3'],
-        ['rpt_risk_delayed_description', 'Risk delayed description', 'textarea', 'risk_delayed_description'],
-        ['rpt_risk_untreated_image', 'Risk untreated image', 'image', 'risk_untreated_image'],
-        ['rpt_treatment_rec_1_title', 'Treatment recommendation 1 title', 'text', 'treatment_rec_1_title'],
-        ['rpt_treatment_rec_1_description', 'Treatment recommendation 1 description', 'textarea', 'treatment_rec_1_description'],
-        ['rpt_treatment_rec_1_image', 'Treatment recommendation 1 image', 'image', 'treatment_rec_1_image'],
-        ['rpt_treatment_rec_2_title', 'Treatment recommendation 2 title', 'text', 'treatment_rec_2_title'],
-        ['rpt_treatment_rec_2_description', 'Treatment recommendation 2 description', 'textarea', 'treatment_rec_2_description'],
-        ['rpt_treatment_rec_2_image', 'Treatment recommendation 2 image', 'image', 'treatment_rec_2_image'],
-        ['rpt_treatment_rec_3_title', 'Treatment recommendation 3 title', 'text', 'treatment_rec_3_title'],
-        ['rpt_treatment_rec_3_description', 'Treatment recommendation 3 description', 'textarea', 'treatment_rec_3_description'],
-        ['rpt_treatment_rec_3_image', 'Treatment recommendation 3 image', 'image', 'treatment_rec_3_image'],
-    ];
-
     echo '<div class="wrap">';
     echo '<h1>Report PDF templates</h1>';
-    echo '<p class="description" style="margin-top:0;">Custom rows for PDF content mapping. Optional merge tokens (for downstream tooling): ';
-    echo '<code>{REPORT_TITLE}</code>, <code>{REPORT_DIAGNOSIS_NAME}</code>, <code>{REPORT_DIAGNOSIS_DESC}</code>, ';
-    echo '<code>{REPORT_CLINICAL_DESC_1}</code> … <code>{REPORT_CLINICAL_DESC_3}</code>, ';
-    echo '<code>{REPORT_RISK_DELAYED_DESC}</code>, <code>{REPORT_RISK_UNTREATED_IMG}</code>, ';
-    echo '<code>{REPORT_TREATMENT_REC_1_TITLE}</code>, <code>{REPORT_TREATMENT_REC_1_DESC}</code>, <code>{REPORT_TREATMENT_REC_1_IMG}</code>, ';
-    echo '<code>{REPORT_PHASE_OF_HAIR_GROWTH_MALE_IMG}</code>, <code>{REPORT_PHASE_OF_HAIR_GROWTH_FEMALE_IMG}</code>, ';
-    echo '<code>{REPORT_TREATMENT_REC_2_TITLE}</code>, <code>{REPORT_TREATMENT_REC_2_DESC}</code>, <code>{REPORT_TREATMENT_REC_2_IMG}</code>, ';
-    echo '<code>{REPORT_TREATMENT_REC_3_TITLE}</code>, <code>{REPORT_TREATMENT_REC_3_DESC}</code>, <code>{REPORT_TREATMENT_REC_3_IMG}</code>. ';
-    echo 'Each row has a unique <strong>masking id</strong> for stable references. Use <strong>Add template</strong> or <strong>Edit</strong> in the table to open the form in a modal.</p>';
+    echo '<p class="description" style="margin-top:0;">Custom rows for PDF content mapping. Each row has a unique <strong>masking id</strong> for stable references. Use <strong>Add template</strong> or <strong>Edit</strong> in the table to open the form in a modal.</p>';
 
     if (isset($_GET['rpt_saved']) && (string) $_GET['rpt_saved'] === '1') {
         echo '<div class="notice notice-success is-dismissible"><p>Template saved.</p></div>';
@@ -6768,9 +7035,9 @@ function eh_assessment_render_report_pdf_templates_page(): void
     $trash_url = add_query_arg('rpt_status', 'trash', $base);
 
     if ($rpt_status === 'trash') {
-        $sql = "SELECT id, masking_id, report_title, diagnosis_name, updated_at, deleted_at FROM {$table} WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC";
+        $sql = "SELECT id, masking_id, report_title, diagnosis_name, updated_at, deleted_at FROM {$table} WHERE deleted_at IS NOT NULL ORDER BY created_at ASC";
     } else {
-        $sql = "SELECT id, masking_id, report_title, diagnosis_name, updated_at FROM {$table} WHERE deleted_at IS NULL ORDER BY updated_at DESC";
+        $sql = "SELECT id, masking_id, report_title, diagnosis_name, updated_at FROM {$table} WHERE deleted_at IS NULL ORDER BY created_at ASC";
     }
     $list = $wpdb->get_results($sql, ARRAY_A);
     if (!is_array($list)) {
@@ -6792,9 +7059,9 @@ function eh_assessment_render_report_pdf_templates_page(): void
 
     echo '<table class="widefat striped"><thead><tr>';
     if ($rpt_status === 'trash') {
-        echo '<th>Masking ID</th><th>Report title</th><th>Diagnosis name</th><th>Deleted at</th><th>Actions</th>';
+        echo '<th>Masking ID</th><th>Report name</th><th>Diagnosis name</th><th>Deleted at</th><th>Actions</th>';
     } else {
-        echo '<th>Masking ID</th><th>Report title</th><th>Diagnosis name</th><th>Updated</th><th>Actions</th>';
+        echo '<th>Masking ID</th><th>Report name</th><th>Diagnosis name</th><th>Updated</th><th>Actions</th>';
     }
     echo '</tr></thead><tbody>';
     if ($list === []) {
@@ -6831,7 +7098,7 @@ function eh_assessment_render_report_pdf_templates_page(): void
     echo '</tbody></table>';
 
     echo '<div id="eh-rpt-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100000;align-items:center;justify-content:center;padding:20px;overflow:auto;">';
-    echo '<div style="background:#fff;width:100%;max-width:760px;border-radius:8px;box-shadow:0 24px 80px rgba(0,0,0,.18);max-height:92vh;overflow:auto;margin:auto;">';
+    echo '<div style="background:#fff;width:100%;max-width:880px;border-radius:8px;box-shadow:0 24px 80px rgba(0,0,0,.18);max-height:92vh;overflow:auto;margin:auto;">';
     echo '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #e5e5e5;">';
     echo '<h2 id="eh-rpt-modal-title" style="margin:0;font-size:18px;">' . esc_html('New template') . '</h2>';
     echo '<button type="button" class="button-link" id="eh-rpt-modal-close" style="font-size:20px;text-decoration:none;line-height:1;" aria-label="' . esc_attr('Close') . '">&times;</button>';
@@ -6847,27 +7114,19 @@ function eh_assessment_render_report_pdf_templates_page(): void
     echo '<input name="rpt_masking_id" id="rpt_masking_id" type="text" class="regular-text" value="" maxlength="' . esc_attr((string) EH_ASSESSMENT_REPORT_PDF_MASKING_ID_MAX_LENGTH) . '" autocomplete="off" />';
     echo '<p class="description" id="eh-rpt-masking-help">' . esc_html('Optional on create. Leave blank to auto-generate. Read-only when editing.') . '</p>';
     echo '</td></tr>';
-    foreach ($rpt_fields as $f) {
-        [$fid, $label, $type] = $f;
-        echo '<tr><th scope="row"><label for="' . esc_attr($fid) . '">' . esc_html($label) . '</label></th><td>';
-        if ($type === 'textarea') {
-            echo '<textarea name="' . esc_attr($fid) . '" id="' . esc_attr($fid) . '" class="large-text" rows="3" cols="50"></textarea>';
-        } elseif ($type === 'image') {
-            echo '<input type="hidden" name="' . esc_attr($fid) . '" id="' . esc_attr($fid) . '" value="" autocomplete="off" />';
-            echo '<div id="' . esc_attr($fid) . '_preview_wrap" class="eh-rpt-media-preview-wrap" style="margin:0 0 10px;">';
-            echo '<img id="' . esc_attr($fid) . '_preview" src="" alt="" style="max-height:160px;max-width:100%;border:1px solid #c3c4c7;border-radius:6px;display:none;" />';
-            echo '</div>';
-            echo '<p class="eh-rpt-media-actions" style="margin:0;">';
-            echo '<button type="button" class="button eh-rpt-media-select" data-target="' . esc_attr($fid) . '">' . esc_html('Select or upload image') . '</button> ';
-            echo '<button type="button" class="button eh-rpt-media-clear" data-target="' . esc_attr($fid) . '">' . esc_html('Remove image') . '</button>';
-            echo '</p>';
-            echo '<p class="description" style="margin-top:8px;">' . esc_html('Stored value is the image URL (suitable for PDF generation).') . '</p>';
-        } else {
-            echo '<input name="' . esc_attr($fid) . '" id="' . esc_attr($fid) . '" type="text" class="large-text" value="" autocomplete="off" />';
-        }
-        echo '</td></tr>';
-    }
     echo '</tbody></table>';
+
+    foreach (eh_assessment_report_pdf_template_form_sections() as $section) {
+        $section_title = (string) ($section['title'] ?? '');
+        echo '<section class="eh-rpt-section-card" style="border:1px solid #dcdcde;border-radius:6px;padding:14px 16px;margin:0 0 14px;background:#f6f7f7;">';
+        echo '<h3 class="eh-rpt-section-card__title" style="margin:0 0 12px;padding:0;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#1d2327;border-bottom:1px solid #dcdcde;padding-bottom:8px;">' . esc_html($section_title) . '</h3>';
+        echo '<table class="form-table" role="presentation" style="margin:0;"><tbody>';
+        foreach ($section['fields'] as $field) {
+            eh_assessment_render_report_pdf_template_field_row($field);
+        }
+        echo '</tbody></table>';
+        echo '</section>';
+    }
     echo '<p class="submit" style="margin-bottom:0;padding-bottom:0;">';
     echo '<button type="submit" class="button button-primary">' . esc_html('Save template') . '</button> ';
     echo '<button type="button" class="button" id="eh-rpt-modal-cancel">' . esc_html('Cancel') . '</button>';
@@ -7592,6 +7851,10 @@ function eh_assessment_migrate_role_access_and_user_assignments(): void
     eh_assessment_migrate_v179_drop_submission_deleted_at();
     eh_assessment_migrate_v180_report_pdf_template_risk_untreated_image();
     eh_assessment_migrate_v191_report_pdf_template_treatment_rec_3();
+    eh_assessment_migrate_v200_report_pdf_template_precon_fields();
+    eh_assessment_migrate_v201_report_pdf_template_drop_legacy_fields();
+    eh_assessment_migrate_v203_report_pdf_template_report_header_title();
+    eh_assessment_migrate_v202_report_pdf_template_seed_precon_defaults();
     eh_assessment_migrate_v181_branch_outlet_display_name();
     eh_assessment_migrate_v190_submission_computed_columns();
 

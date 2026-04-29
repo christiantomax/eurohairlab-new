@@ -197,6 +197,969 @@ if (!function_exists('eh_report_preview_score_card')) {
 if (!function_exists('eh_assessment_render_report_preview_html')) {
     function eh_assessment_render_report_preview_html(array $report): void
     {
+        $template = isset($report['pdf_template_row']) && is_array($report['pdf_template_row']) ? $report['pdf_template_row'] : [];
+        if ($template !== []) {
+            $name = eh_report_preview_value($report, 'patient.name', 'Unknown');
+            $salutation = trim(eh_report_preview_value($report, 'patient.salutation', ''));
+            $displayName = trim(($salutation !== '' ? $salutation . ' ' : '') . $name);
+            $score = (string) ((int) ($report['scores']['overall'] ?? 0));
+            $clinicalImage = eh_report_preview_treatment_image_src((string) ($template['image_clinical_knowledge'] ?? ''), '');
+            $journeyImage = eh_report_preview_treatment_image_src((string) ($template['image_treatment_journey'] ?? ''), '');
+            $is_pdf_render = defined('EH_ASSESSMENT_REPORT_PDF_RENDER') && EH_ASSESSMENT_REPORT_PDF_RENDER;
+            $bandStr = trim((string) ($report['computed']['band'] ?? ''));
+            $submittedAt = trim((string) ($report['submission']['submitted_at'] ?? ''));
+            $reportDateLabel = '';
+            if ($submittedAt !== '' && function_exists('eh_assessment_format_indonesian_date')) {
+                $reportDateLabel = eh_assessment_format_indonesian_date($submittedAt);
+            } elseif ($submittedAt !== '') {
+                $reportDateLabel = $submittedAt;
+            }
+            $preconImgSrcAttr = static function (string $raw) use ($is_pdf_render): string {
+                $raw = trim($raw);
+                if ($raw === '') {
+                    return '';
+                }
+                if ($is_pdf_render && !preg_match('#^https?://#i', $raw)) {
+                    return esc_attr($raw);
+                }
+
+                return esc_url($raw);
+            };
+            $preconLogoFile = 'precon-header-logo.png';
+            $preconLogoPath = __DIR__ . '/assets/report/' . $preconLogoFile;
+            if (!is_readable($preconLogoPath)) {
+                $preconLogoFile = 'logo-black.png';
+            }
+            $preconLogoSrc = eh_report_preview_asset_url($preconLogoFile);
+            $renderHtml = static function (string $value): string {
+                $safe = wp_kses_post($value);
+                return $safe === '' ? '' : wpautop($safe);
+            };
+            $diagPlain = trim(wp_strip_all_tags((string) ($template['diagnosis_name'] ?? '')));
+            if ($diagPlain === '') {
+                $diagPlain = '—';
+            }
+            $scoreNum = $score !== '0' ? $score : '—';
+            $reportHeaderTitle = trim((string) ($template['report_header_title'] ?? ''));
+            if ($reportHeaderTitle === '') {
+                $reportHeaderTitle = 'HAIR HEALTH';
+            }
+            $docTitle = trim((string) ($template['subtitle'] ?? ''));
+            if ($docTitle === '') {
+                $docTitle = trim((string) ($template['report_title'] ?? ''));
+            }
+            if ($docTitle === '') {
+                $docTitle = 'Pre-Consultation Report';
+            }
+            ?>
+            <!DOCTYPE html>
+            <html lang="en" class="<?php echo $is_pdf_render ? 'eh-report-pdf eh-precon-pdf' : 'eh-precon-html'; ?>">
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <title><?php echo esc_html($docTitle); ?></title>
+                <style>
+                    @page { size: A4 portrait; margin: 0; }
+                    html, body {
+                        margin: 0;
+                        padding: 0;
+                        color: #1f1f1f;
+                        font-family: Arial, Helvetica, sans-serif;
+                        font-size: 13px;
+                        line-height: 1.45;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    /* Preview: gradient. Dompdf often skips radial-gradient on body → flat cream for PDF only. */
+                    html.eh-precon-html,
+                    html.eh-precon-html body {
+                        background: #E3E2D3;
+                    }
+                    html.eh-precon-pdf,
+                    html.eh-precon-pdf body {
+                        min-height: 0 !important;
+                        height: auto !important;
+                        background-color: #f4f1ea;
+                        background-image: none;
+                    }
+                    /*
+                     * Dompdf-only type scale (reference proportions vs browser preview).
+                     * @page background-color is not applied by Dompdf; body fill must be solid.
+                     */
+                    html.eh-precon-pdf {
+                        font-size: 11px;
+                    }
+                    html.eh-precon-pdf .eh-precon-run-header {
+                        font-size: 8px;
+                        color: #4a4a4a;
+                    }
+                    html.eh-precon-pdf .eh-precon-footer {
+                        font-size: 10px;
+                    }
+                    html.eh-precon-pdf .eh-precon-title-series {
+                        font-size: 24px;
+                        font-weight: 400;
+                        letter-spacing: 0.11em;
+                        color: #1a1a1a;
+                        margin: 0;
+                    }
+                    html.eh-precon-pdf .eh-precon-title-hero {
+                        font-size: 30px;
+                        line-height: 1.05;
+                        font-weight: 800;
+                        color: #b8894d;
+                        letter-spacing: 0.05em;
+                    }
+                    html.eh-precon-pdf .eh-precon-prepared-line {
+                        font-size: 11px;
+                        line-height: 1.35;
+                        color: #2a2a2a;
+                        text-align: center;
+                    }
+                    html.eh-precon-pdf .eh-precon-salutation {
+                        font-size: 14px;
+                        text-align: justify;
+                    }
+                    html.eh-precon-pdf .eh-precon-body-copy,
+                    html.eh-precon-pdf .eh-precon-body-copy li {
+                        font-size: 11px;
+                        line-height: 1.45;
+                        color: #303030;
+                        text-align: justify;
+                    }
+                    html.eh-precon-pdf .eh-precon-body-copy p {
+                        font-size: 12px;
+                        line-height: 1.45;
+                        color: #303030;
+                        text-align: justify;
+                    }
+                    html.eh-precon-pdf .eh-precon-body-copy--clinical-knowledge,
+                    html.eh-precon-pdf .eh-precon-body-copy--clinical-knowledge p,
+                    html.eh-precon-pdf .eh-precon-body-copy--clinical-knowledge li {
+                        font-size: 10px;
+                        text-align: center;
+                    }
+                    html.eh-precon-pdf .eh-precon-body-copy--recommendation-intro {
+                        text-align: center;
+                    }
+                    html.eh-precon-pdf .eh-precon-body-copy--recommendation-intro p {
+                        text-align: center;
+                    }
+                    html.eh-precon-pdf .eh-precon-body-copy--recommendation-footer,
+                    html.eh-precon-pdf .eh-precon-body-copy--recommendation-footer p {
+                        font-size: 11px;
+                        text-align: center;
+                        font-style: italic;
+                    }
+                    html.eh-precon-pdf .eh-precon-recommendation-card .eh-precon-body-copy--recommendation-detail,
+                    html.eh-precon-pdf .eh-precon-recommendation-card .eh-precon-body-copy--recommendation-detail p,
+                    html.eh-precon-pdf .eh-precon-recommendation-card .eh-precon-body-copy--recommendation-detail li {
+                        text-align: center;
+                    }
+                    html.eh-precon-pdf .eh-precon-recommendation-card .eh-precon-body-copy--recommendation-detail ul {
+                        padding-left: 0;
+                        list-style-position: inside;
+                    }
+                    html.eh-precon-pdf .eh-precon-recommendation-card .eh-precon-body-copy--recommendation-detail li {
+                        font-weight: 700;
+                    }
+                    html.eh-precon-pdf .eh-precon-section-kicker {
+                        font-size: 18px;
+                        text-align: center;
+                    }
+                    html.eh-precon-pdf .eh-precon-score-panel {
+                        background: #D7AD74 !important;
+                        background-image: none !important;
+                    }
+                    html.eh-precon-pdf .eh-precon-score-panel-label {
+                        font-size: 15px;
+                    }
+                    html.eh-precon-pdf .eh-precon-score-panel-num {
+                        font-size: 52px;
+                    }
+                    html.eh-precon-pdf .eh-precon-result-title {
+                        font-size: 24px;
+                        line-height: 1;
+                        margin: 0;
+                        color: #1a1a1a;
+                    }
+                    html.eh-precon-pdf .eh-precon-result-sub {
+                        font-size: 20px;
+                        color: #1a1a1a;
+                    }
+                    html.eh-precon-pdf .eh-precon-heading {
+                        font-size: 18px;
+                        text-align: center;
+                        margin: 0 0 5px;
+                    }
+                    html.eh-precon-pdf .eh-precon-heading--journey {
+                        text-align: left;
+                    }
+                    html.eh-precon-pdf .eh-precon-journey-square .eh-precon-img-frame--journey {
+                        width: 100%;
+                        max-width: 380px;
+                        height: auto;
+                        aspect-ratio: auto;
+                        box-sizing: border-box;
+                        overflow: visible;
+                    }
+                    html.eh-precon-pdf .eh-precon-journey-square .eh-precon-img-frame--journey img {
+                        width: 100%;
+                        height: auto;
+                        object-fit: contain;
+                    }
+                    html.eh-precon-pdf .eh-precon-subheading {
+                        font-size: 11px;
+                        font-weight: 400;
+                    }
+                    html.eh-precon-pdf .eh-precon-legal-note,
+                    html.eh-precon-pdf .eh-precon-legal-note p {
+                        font-size: 11px;
+                        text-align: justify;
+                    }
+                    /* Repeats on every printed page (Dompdf + browser print). */
+                    .eh-precon-run-header {
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        z-index: 20;
+                        box-sizing: border-box;
+                        padding: 8px 12px 6px;
+                        text-align: right;
+                        font-size: 12px;
+                        font-style: italic;
+                        color: #5c5a57;
+                        background: transparent;
+                    }
+                    .eh-precon-footer {
+                        position: fixed;
+                        bottom: 0;
+                        left: 0;
+                        right: 0;
+                        z-index: 20;
+                        box-sizing: border-box;
+                        padding: 8px 12px;
+                        text-align: center;
+                        font-size: 12px;
+                        color: #3a3836;
+                        background: #e4e2de;
+                        border-top: 1px solid #d0cec9;
+                    }
+                    .eh-precon-footer-item,
+                    .eh-precon-footer-sep {
+                        display: inline-block;
+                        vertical-align: middle;
+                    }
+                    .eh-precon-footer-item {
+                        padding: 0 0.2em;
+                    }
+                    .eh-precon-footer-sep {
+                        padding: 0 0.55em;
+                        color: #6e6b68;
+                        font-weight: 400;
+                    }
+                    .eh-precon-shell {
+                        max-width: 700px;
+                        margin: 0 auto;
+                        padding: 44px 12px 56px;
+                        box-sizing: border-box;
+                    }
+                    /* Logo in document flow → first PDF page only (not fixed). */
+                    .eh-precon-first-hero {
+                        text-align: center;
+                        margin: 0 0 12px;
+                    }
+                    .eh-precon-logo {
+                        display: block;
+                        margin: 0 auto;
+                        max-width: 265px;
+                        width: 35%;
+                        height: auto;
+                        border: 0;
+                    }
+                    h1, h2, h3 { margin: 0; }
+                    /* Header stack (matches PDF: small series title, large gold report type). */
+                    .eh-precon-title-series {
+                        text-align: center;
+                        font-size: 11px;
+                        font-weight: 300;
+                        color: #4a4a4a;
+                        letter-spacing: 0.18em;
+                        margin: 0;
+                        text-transform: uppercase;
+                    }
+                    .eh-precon-title-hero {
+                        text-align: center;
+                        margin: 0;
+                        font-size: 21px;
+                        font-weight: 700;
+                        color: #b08b52;
+                        letter-spacing: 0.08em;
+                        line-height: 1.2;
+                        text-transform: uppercase;
+                    }
+                    .eh-precon-prepared-line {
+                        text-align: center;
+                        font-size: 11px;
+                        color: #1a1a1a;
+                        margin: 0 0 16px;
+                        line-height: 1.45;
+                    }
+                    .eh-precon-rule {
+                        border: 0;
+                        height: 1px;
+                        background: #c8c4bc;
+                        margin: 0 0 16px;
+                    }
+                    .eh-precon-salutation {
+                        font-size: 13px;
+                        font-weight: 700;
+                        color: #1a1a1a;
+                        margin: 0 0 10px;
+                        text-align: justify;
+                    }
+                    .eh-precon-open-block {
+                        margin: 0 0 18px;
+                        padding-left: 1.25rem;
+                        padding-right: 1.25rem;
+                    }
+                    .eh-precon-open-block .eh-precon-body-copy {
+                        margin-bottom: 0;
+                    }
+                    .eh-precon-open-block .eh-precon-body-copy p:last-child {
+                        margin-bottom: 0;
+                    }
+                    .eh-precon-section-kicker {
+                        text-align: center;
+                        font-size: 18px;
+                        font-weight: 700;
+                        color: #b08b52;
+                        letter-spacing: 0.1em;
+                        margin: 0 0 12px;
+                        text-transform: uppercase;
+                    }
+                    /* Score + diagnosis: table (Dompdf flexbox is unreliable). */
+                    .eh-precon-score-shell {
+                        width: calc(100% - 2.5rem);
+                        max-width: 100%;
+                        border-collapse: separate;
+                        border-spacing: 0;
+                        box-sizing: border-box;
+                        border-radius: 28px;
+                        overflow: hidden;
+                        margin: 0 1.25rem 1rem;
+                        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+                        border: 0;
+                        background: #cca367;
+                    }
+                    .eh-precon-score-shell td {
+                        vertical-align: middle;
+                    }
+                    .eh-precon-score-panel {
+                        width: 22%;
+                        box-sizing: border-box;
+                        background: #c9a063;
+                        background: linear-gradient(180deg, #d2aa72 0%, #c49858 100%);
+                        color: #ffffff;
+                        text-align: center;
+                        padding: 20px 10px;
+                    }
+                    .eh-precon-score-panel-label {
+                        font-size: 15px;
+                        font-weight: 700;
+                        letter-spacing: 0.1em;
+                        margin: 0 0 8px;
+                    }
+                    .eh-precon-score-panel-num {
+                        font-size: 52px;
+                        font-weight: 700;
+                        line-height: 1;
+                        letter-spacing: -0.02em;
+                    }
+                    .eh-precon-result-panel {
+                        width: 78%;
+                        box-sizing: border-box;
+                        background: #e8e8e8;
+                        padding: 0;
+                        border-radius: 24px;
+                        text-align: center;
+                    }
+                    .eh-precon-result-wrap {
+                        display: inline-block;
+                        width: calc(100% - 40px);
+                        max-width: calc(100% - 40px);
+                        margin: 10px 20px;
+                        vertical-align: middle;
+                        border-radius: 35px;
+                        overflow: hidden;
+                        background: #ffffff;
+                        border: 1px solid #e0e0e0;
+                        box-sizing: border-box;
+                        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+                    }
+                    .eh-precon-result-pill {
+                        background: #ffffff;
+                        border-radius: 0;
+                        border: 0;
+                        box-shadow: none;
+                        padding: 16px 26px;
+                        text-align: center;
+                    }
+                    .eh-precon-result-title {
+                        font-size: 24px;
+                        font-weight: 700;
+                        color: #2f2b2a;
+                        line-height: 1;
+                        margin: 0;
+                    }
+                    .eh-precon-result-sub {
+                        font-size: 20px;
+                        font-weight: 400;
+                        color: #4a4744;
+                        margin: 0;
+                    }
+                    .eh-precon-meta { font-size: 12px; color: #444; line-height: 1.55; margin: 0 0 14px; text-align: justify; }
+                    .eh-precon-meta strong { color: #222; }
+                    .eh-precon-body-copy {
+                        font-size: 11px;
+                        color: #222;
+                        line-height: 1.5;
+                        margin: 0 0 8px;
+                        text-align: justify;
+                    }
+                    .eh-precon-body-copy li {
+                        font-size: 11px;
+                        text-align: justify;
+                    }
+                    .eh-precon-body-copy p {
+                        font-size: 12px;
+                        margin: 0 0 10px;
+                        text-align: justify;
+                    }
+                    .eh-precon-body-copy--clinical-knowledge {
+                        text-align: center;
+                        font-size: 10px;
+                    }
+                    .eh-precon-body-copy--clinical-knowledge p,
+                    .eh-precon-body-copy--clinical-knowledge li {
+                        font-size: 10px;
+                        text-align: center;
+                    }
+                    .eh-precon-body-copy--recommendation-intro {
+                        text-align: center;
+                    }
+                    .eh-precon-body-copy--recommendation-intro p {
+                        text-align: center;
+                    }
+                    .eh-precon-recommendation-card {
+                        background: #ffffff;
+                        border: 1px solid #e8e5de;
+                        border-radius: 28px;
+                        padding: 16px 22px;
+                        margin: 12px 0 14px;
+                        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+                    }
+                    .eh-precon-recommendation-card .eh-precon-body-copy--recommendation-detail {
+                        margin: 0;
+                        text-align: center;
+                    }
+                    .eh-precon-recommendation-card .eh-precon-body-copy--recommendation-detail ul {
+                        margin: 0;
+                        padding-left: 0;
+                        list-style-position: inside;
+                        text-align: center;
+                    }
+                    .eh-precon-recommendation-card .eh-precon-body-copy--recommendation-detail p {
+                        text-align: center;
+                    }
+                    .eh-precon-recommendation-card .eh-precon-body-copy--recommendation-detail li {
+                        font-weight: 700;
+                        text-align: center;
+                        color: #1a1a1a;
+                    }
+                    .eh-precon-body-copy--recommendation-footer,
+                    .eh-precon-body-copy--recommendation-footer p {
+                        text-align: center;
+                        font-style: italic;
+                        font-size: 11px;
+                        color: #555555;
+                        margin-top: 0;
+                    }
+                    .eh-precon-body-copy--recommendation-footer p {
+                        margin: 0 0 8px;
+                    }
+                    .eh-precon-body-copy--recommendation-footer p:last-child {
+                        margin-bottom: 0;
+                    }
+                    .eh-precon-block {
+                        margin: 0;
+                        border-top: 2px solid #c8c4bc;
+                        padding-top: 14px;
+                        padding-left: 1.25rem;
+                        padding-right: 1.25rem;
+                    }
+                    .eh-precon-block--no-rule {
+                        border-top: 0;
+                        padding-top: 0;
+                        padding-bottom: 1rem;
+                    }
+                    .eh-precon-block--journey {
+                        padding-bottom: 1rem;
+                    }
+                    .eh-precon-block--no-rule .eh-precon-body-copy {
+                        margin-bottom: 0;
+                    }
+                    .eh-precon-block--no-rule .eh-precon-body-copy p:last-child {
+                        margin-bottom: 0;
+                    }
+                    .eh-precon-block--no-top-border {
+                        border-top: 0;
+                    }
+                    .eh-precon-heading { font-size: 18px; font-weight: 700; color: #b08b52; letter-spacing: 0.1em; margin: 0 0 5px; text-transform: uppercase; text-align: center; }
+                    .eh-precon-subheading { font-size: 13px; font-weight: 400; color: #1a1a1a; margin: 0 0 10px; line-height: 1.35; white-space: pre-line; text-align: justify; }
+                    .eh-precon-clinical-layout {
+                        width: 100%;
+                        border-collapse: separate;
+                        border-spacing: 0;
+                        margin: 0 0 14px;
+                    }
+                    .eh-precon-clinical-layout td { vertical-align: middle; }
+                    .eh-precon-clinical-left { width: 32%; padding: 0 14px 0 0; }
+                    .eh-precon-clinical-left .eh-precon-subheading {
+                        font-size: 22px;
+                        font-weight: 400;
+                        line-height: 1.18;
+                        letter-spacing: 0.02em;
+                        margin: 0;
+                        text-align: justify;
+                    }
+                    .eh-precon-clinical-right { width: 68%; }
+                    /* Treatment journey: text left (~1/3), diagram right (~2/3), table for Dompdf. */
+                    .eh-precon-journey-layout {
+                        width: 100%;
+                        border-collapse: separate;
+                        border-spacing: 0;
+                        margin: 0;
+                    }
+                    .eh-precon-journey-layout td {
+                        box-sizing: border-box;
+                    }
+                    .eh-precon-journey-left {
+                        width: 34%;
+                        padding: 0 18px 0 0;
+                        vertical-align: middle;
+                    }
+                    .eh-precon-journey-right {
+                        width: 66%;
+                        padding: 0 0 0 5rem;
+                        vertical-align: middle;
+                    }
+                    .eh-precon-heading--journey {
+                        text-align: left;
+                        margin: 0 0 5px;
+                    }
+                    .eh-precon-body-copy--journey {
+                        text-align: justify;
+                        margin: 0;
+                    }
+                    .eh-precon-body-copy--journey p {
+                        text-align: justify;
+                    }
+                    .eh-precon-journey-square {
+                        width: 100%;
+                        max-width: 100%;
+                        margin: 0;
+                    }
+                    .eh-precon-journey-square .eh-precon-img-frame--journey {
+                        width: 100%;
+                        height: auto;
+                        min-height: 0;
+                        margin: 0;
+                        border-radius: 8px;
+                        background: #f2efea;
+                        overflow: visible;
+                    }
+                    .eh-precon-journey-square .eh-precon-img-frame--journey img {
+                        width: 100%;
+                        height: auto;
+                        max-width: 100%;
+                        object-fit: contain;
+                        display: block;
+                    }
+                    .eh-precon-clinical-card {
+                        border-radius: 24px;
+                        background: #ffffff;
+                        border: 1px solid #ebe5da;
+                        padding: 10px;
+                        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+                    }
+                    .eh-precon-clinical-card .eh-precon-img-frame {
+                        margin: 0;
+                        height: 250px;
+                        border-radius: 18px;
+                        background: #f6f3ed;
+                    }
+                    .eh-precon-img-frame {
+                        width: 100%;
+                        max-width: 100%;
+                        height: 220px;
+                        margin: 10px auto 14px;
+                        overflow: hidden;
+                        border-radius: 6px;
+                        background: #eceae4;
+                    }
+                    .eh-precon-img-frame img {
+                        width: 100%;
+                        height: 100%;
+                        object-fit: cover;
+                        object-position: center;
+                        display: block;
+                    }
+                    .eh-precon-page2 { page-break-before: always; break-before: page; padding-top: 8px; }
+                    .eh-precon-legal-note {
+                        font-size: 11px;
+                        line-height: 1.45;
+                        color: #555;
+                        margin: 18px 0 0;
+                        padding-top: 2.5rem;
+                        padding-left: 1.25rem;
+                        padding-right: 1.25rem;
+                        border-top: 1px solid #dcd8d0;
+                        text-align: justify;
+                    }
+                    .eh-precon-legal-note p { margin: 0 0 8px; text-align: justify; }
+                    /*
+                     * Admin browser preview only: type scale aligned to print/PDF reference
+                     * (body ~14px, section titles ~23px, side titles ~19px, footer note ~11–12px).
+                     */
+                    html.eh-precon-html .eh-precon-body-copy,
+                    html.eh-precon-html .eh-precon-body-copy li {
+                        font-size: 11px;
+                        line-height: 1.55;
+                        color: #333333;
+                        text-align: justify;
+                    }
+                    html.eh-precon-html .eh-precon-body-copy p {
+                        font-size: 12px;
+                        line-height: 1.55;
+                        color: #333333;
+                        text-align: justify;
+                    }
+                    html.eh-precon-html .eh-precon-body-copy--clinical-knowledge,
+                    html.eh-precon-html .eh-precon-body-copy--clinical-knowledge p,
+                    html.eh-precon-html .eh-precon-body-copy--clinical-knowledge li {
+                        font-size: 10px;
+                        text-align: center;
+                    }
+                    html.eh-precon-html .eh-precon-body-copy--recommendation-intro {
+                        text-align: center;
+                    }
+                    html.eh-precon-html .eh-precon-body-copy--recommendation-intro p {
+                        text-align: center;
+                    }
+                    html.eh-precon-html .eh-precon-body-copy--recommendation-footer,
+                    html.eh-precon-html .eh-precon-body-copy--recommendation-footer p {
+                        font-size: 11px;
+                        text-align: center;
+                        font-style: italic;
+                    }
+                    html.eh-precon-html .eh-precon-recommendation-card {
+                        border-radius: 32px;
+                        padding: 18px 24px;
+                    }
+                    html.eh-precon-html .eh-precon-recommendation-card .eh-precon-body-copy--recommendation-detail,
+                    html.eh-precon-html .eh-precon-recommendation-card .eh-precon-body-copy--recommendation-detail p,
+                    html.eh-precon-html .eh-precon-recommendation-card .eh-precon-body-copy--recommendation-detail li {
+                        text-align: center;
+                    }
+                    html.eh-precon-html .eh-precon-recommendation-card .eh-precon-body-copy--recommendation-detail ul {
+                        padding-left: 0;
+                        list-style-position: inside;
+                    }
+                    html.eh-precon-html .eh-precon-recommendation-card .eh-precon-body-copy--recommendation-detail li {
+                        font-weight: 700;
+                    }
+                    html.eh-precon-html .eh-precon-body-copy strong {
+                        font-weight: 700;
+                        color: #222222;
+                    }
+                    html.eh-precon-html .eh-precon-section-kicker {
+                        font-size: 18px;
+                        font-weight: 700;
+                        color: #9c7c5d;
+                        letter-spacing: 0.1em;
+                        margin: 0 0 20px;
+                        text-align: center;
+                        line-height: 1.25;
+                    }
+                    html.eh-precon-html .eh-precon-heading {
+                        font-size: 18px;
+                        font-weight: 700;
+                        color: #9c7c5d;
+                        letter-spacing: 0.1em;
+                        margin: 0 0 5px;
+                        text-align: center;
+                        line-height: 1.25;
+                    }
+                    html.eh-precon-html .eh-precon-heading--journey {
+                        text-align: left;
+                        margin: 0 0 5px;
+                    }
+                    html.eh-precon-html .eh-precon-subheading {
+                        font-size: 19px;
+                        font-weight: 400;
+                        color: #1a1a1a;
+                        margin: 0 0 16px;
+                        line-height: 1.3;
+                    }
+                    html.eh-precon-html .eh-precon-clinical-left .eh-precon-subheading {
+                        font-size: 52px;
+                        font-weight: 400;
+                        line-height: 1.05;
+                        letter-spacing: 0.01em;
+                    }
+                    html.eh-precon-html .eh-precon-clinical-card {
+                        border-radius: 35px;
+                        border: 1px solid #e8e5de;
+                        padding: 14px;
+                        background: #ffffff;
+                    }
+                    html.eh-precon-html .eh-precon-clinical-card .eh-precon-img-frame {
+                        height: 290px;
+                        border-radius: 20px;
+                    }
+                    html.eh-precon-html .eh-precon-legal-note,
+                    html.eh-precon-html .eh-precon-legal-note p {
+                        font-size: 11px;
+                        line-height: 1.5;
+                        color: #444444;
+                        text-align: justify;
+                    }
+                    html.eh-precon-html .eh-precon-img-frame {
+                        border-radius: 18px;
+                    }
+                    html.eh-precon-html .eh-precon-journey-square {
+                        max-width: 100%;
+                    }
+                    html.eh-precon-html .eh-precon-journey-square .eh-precon-img-frame--journey {
+                        border-radius: 10px;
+                        height: auto;
+                        overflow: visible;
+                    }
+                    html.eh-precon-html .eh-precon-journey-square .eh-precon-img-frame--journey img {
+                        width: 100%;
+                        height: auto;
+                        object-fit: contain;
+                    }
+                    html.eh-precon-html .eh-precon-block {
+                        margin: 0;
+                        border-top: 2px solid #bcb8af;
+                        padding-top: 16px;
+                        padding-left: 1.25rem;
+                        padding-right: 1.25rem;
+                    }
+                    html.eh-precon-html .eh-precon-block--no-rule,
+                    html.eh-precon-pdf .eh-precon-block--no-rule {
+                        border-top: 0;
+                        padding-top: 0;
+                        padding-bottom: 1rem;
+                    }
+                    html.eh-precon-html .eh-precon-block--no-top-border,
+                    html.eh-precon-pdf .eh-precon-block--no-top-border {
+                        border-top: 0;
+                    }
+                    html.eh-precon-html .eh-precon-rule {
+                        margin: 0 0 20px;
+                    }
+                    html.eh-precon-html .eh-precon-title-series {
+                        font-size: 14px;
+                        font-weight: 300;
+                    }
+                    html.eh-precon-html .eh-precon-title-hero {
+                        font-size: 28px;
+                        color: #9c7c5d;
+                    }
+                    html.eh-precon-html .eh-precon-prepared-line {
+                        font-size: 11px;
+                        text-align: center;
+                    }
+                    html.eh-precon-html .eh-precon-salutation {
+                        font-size: 14px;
+                        text-align: justify;
+                    }
+                    html.eh-precon-html .eh-precon-result-title {
+                        font-size: 24px;
+                        line-height: 1;
+                        margin: 0;
+                    }
+                    html.eh-precon-html .eh-precon-result-sub {
+                        font-size: 20px;
+                    }
+                    html.eh-precon-html .eh-precon-score-panel-label {
+                        font-size: 15px;
+                    }
+                    html.eh-precon-html .eh-precon-score-panel-num {
+                        font-size: 36px;
+                    }
+                    html.eh-precon-html .eh-precon-run-header {
+                        font-size: 11px;
+                    }
+                    html.eh-precon-html .eh-precon-footer {
+                        font-size: 11.5px;
+                    }
+                    html.eh-precon-pdf .eh-precon-clinical-left .eh-precon-subheading {
+                        font-size: 24px;
+                        font-weight: 400;
+                        line-height: 1.15;
+                    }
+                    html.eh-precon-pdf .eh-precon-clinical-card {
+                        border-radius: 22px;
+                        border: 1px solid #e5dfd3;
+                        padding: 10px;
+                        background: #ffffff;
+                    }
+                    html.eh-precon-pdf .eh-precon-clinical-card .eh-precon-img-frame {
+                        height: 240px;
+                        border-radius: 16px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="eh-precon-run-header"><?php echo esc_html('Confidential Clinical Assessment'); ?></div>
+                <div class="eh-precon-footer">
+                    <span class="eh-precon-footer-item"><?php echo esc_html('Jakarta'); ?></span><span class="eh-precon-footer-sep"><?php echo esc_html('|'); ?></span><span class="eh-precon-footer-item"><?php echo esc_html('eurohairlab.com'); ?></span><span class="eh-precon-footer-sep"><?php echo esc_html('|'); ?></span><span class="eh-precon-footer-item"><?php echo esc_html('WhatsApp: +62 813 2106 788'); ?></span>
+                </div>
+
+                <div class="eh-precon-shell">
+                <div class="eh-precon-first-hero">
+                    <img class="eh-precon-logo" src="<?php echo $is_pdf_render ? esc_attr($preconLogoSrc) : esc_url($preconLogoSrc); ?>" alt="<?php echo esc_attr('EUROHAIRLAB by Dr. Scalp'); ?>" />
+                </div>
+                <div class="eh-precon-title-series"><?php echo esc_html($reportHeaderTitle); ?></div>
+                <div class="eh-precon-title-hero"><?php echo esc_html((string) ($template['subtitle'] ?? '')); ?></div>
+                <p class="eh-precon-prepared-line">
+                    <?php echo esc_html('Prepared for :'); ?> <?php echo esc_html($displayName); ?>
+                    <?php if ($reportDateLabel !== '') : ?>
+                        <?php echo esc_html(' Report '); ?><?php echo esc_html($reportDateLabel); ?>
+                    <?php endif; ?>
+                </p>
+                <hr class="eh-precon-rule" />
+                <div class="eh-precon-open-block">
+                    <p class="eh-precon-salutation"><?php echo esc_html('Yth.'); ?> <?php echo esc_html($displayName); ?>,</p>
+                    <div class="eh-precon-body-copy"><?php echo $renderHtml((string) ($template['greeting_description'] ?? '')); ?></div>
+                </div>
+                <hr class="eh-precon-rule" />
+                <table class="eh-precon-score-shell" cellpadding="0" cellspacing="0" border="0" role="presentation">
+                    <tr>
+                        <td class="eh-precon-score-panel" width="22%">
+                            <div class="eh-precon-score-panel-label"><?php echo esc_html('SCORE'); ?></div>
+                            <div class="eh-precon-score-panel-num"><?php echo esc_html($scoreNum); ?></div>
+                        </td>
+                        <td class="eh-precon-result-panel" width="78%">
+                            <div class="eh-precon-result-wrap">
+                                <div class="eh-precon-result-pill">
+                                    <div class="eh-precon-result-title"><?php echo esc_html($diagPlain); ?></div>
+                                    <?php if ($bandStr !== '') : ?>
+                                        <p class="eh-precon-result-sub">(<?php echo esc_html($bandStr); ?>)</p>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+
+                <div class="eh-precon-block eh-precon-block--no-rule">
+                    <div class="eh-precon-section-kicker"><?php echo esc_html((string) ($template['title_condition_explanation'] ?? '')); ?></div>
+                    <div class="eh-precon-body-copy"><?php echo $renderHtml((string) ($template['description_condition_explanation'] ?? '')); ?></div>
+                </div>
+
+                <div class="eh-precon-block">
+                    <div class="eh-precon-heading"><?php echo esc_html((string) ($template['title_clinical_knowledge'] ?? '')); ?></div>
+                    <table class="eh-precon-clinical-layout" width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
+                        <tr>
+                            <td class="eh-precon-clinical-left" width="32%">
+                                <div class="eh-precon-subheading"><?php echo esc_html((string) ($template['subtitle_clinical_knowledge'] ?? '')); ?></div>
+                            </td>
+                            <td class="eh-precon-clinical-right" width="68%">
+                                <?php if ($clinicalImage !== '') : ?>
+                                    <div class="eh-precon-clinical-card">
+                                        <div class="eh-precon-img-frame">
+                                            <img src="<?php echo $preconImgSrcAttr($clinicalImage); ?>" alt="" />
+                                        </div>
+                                    </div>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    </table>
+                    <div class="eh-precon-body-copy eh-precon-body-copy--clinical-knowledge"><?php echo $renderHtml((string) ($template['description_clinical_knowledge'] ?? '')); ?></div>
+                </div>
+
+                <div class="eh-precon-page2">
+                    <div class="eh-precon-block eh-precon-block--no-top-border">
+                        <div class="eh-precon-heading"><?php echo esc_html((string) ($template['title_evaluation_urgency'] ?? '')); ?></div>
+                        <div class="eh-precon-body-copy"><?php echo $renderHtml((string) ($template['description_evaluation_urgency'] ?? '')); ?></div>
+                    </div>
+                    <div class="eh-precon-block eh-precon-block--journey">
+                        <?php if ($journeyImage !== '') : ?>
+                            <table class="eh-precon-journey-layout" width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
+                                <tr>
+                                    <td class="eh-precon-journey-left" width="34%" valign="middle">
+                                        <div class="eh-precon-heading eh-precon-heading--journey"><?php echo esc_html((string) ($template['title_treatment_journey'] ?? '')); ?></div>
+                                        <div class="eh-precon-body-copy eh-precon-body-copy--journey"><?php echo $renderHtml((string) ($template['description_treatment_journey'] ?? '')); ?></div>
+                                    </td>
+                                    <td class="eh-precon-journey-right" width="66%" valign="middle">
+                                        <div class="eh-precon-journey-square">
+                                            <div class="eh-precon-img-frame eh-precon-img-frame--journey">
+                                                <img src="<?php echo $preconImgSrcAttr($journeyImage); ?>" alt="" />
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        <?php else : ?>
+                            <div class="eh-precon-heading"><?php echo esc_html((string) ($template['title_treatment_journey'] ?? '')); ?></div>
+                            <div class="eh-precon-body-copy"><?php echo $renderHtml((string) ($template['description_treatment_journey'] ?? '')); ?></div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="eh-precon-block">
+                        <div class="eh-precon-heading"><?php echo esc_html((string) ($template['title_recommendation_approach'] ?? '')); ?></div>
+                        <?php
+                        $recIntro = trim((string) ($template['description_recommendation_approach'] ?? ''));
+                        $recDetail = trim((string) ($template['detail_recommendation_approach'] ?? ''));
+                        $recFooter = trim((string) ($template['bottom_description_recommendation_approach'] ?? ''));
+                        ?>
+                        <?php if ($recIntro !== '') : ?>
+                            <div class="eh-precon-body-copy eh-precon-body-copy--recommendation-intro"><?php echo $renderHtml($recIntro); ?></div>
+                        <?php endif; ?>
+                        <?php if ($recDetail !== '') : ?>
+                            <div class="eh-precon-recommendation-card">
+                                <div class="eh-precon-body-copy eh-precon-body-copy--recommendation-detail"><?php echo $renderHtml($recDetail); ?></div>
+                            </div>
+                        <?php endif; ?>
+                        <?php if ($recFooter !== '') : ?>
+                            <div class="eh-precon-body-copy eh-precon-body-copy--recommendation-footer"><?php echo $renderHtml($recFooter); ?></div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="eh-precon-block">
+                        <div class="eh-precon-heading"><?php echo esc_html((string) ($template['title_next_steps'] ?? '')); ?></div>
+                        <div class="eh-precon-body-copy"><?php echo $renderHtml((string) ($template['description_next_steps'] ?? '')); ?></div>
+                    </div>
+                    <div class="eh-precon-block">
+                        <div class="eh-precon-heading"><?php echo esc_html((string) ($template['title_medical_notes'] ?? '')); ?></div>
+                        <div class="eh-precon-body-copy"><?php echo $renderHtml((string) ($template['description_medical_notes'] ?? '')); ?></div>
+                    </div>
+                    <div class="eh-precon-legal-note">
+                        <p><?php echo esc_html('Disiapkan oleh EUROHAIRLAB Clinical Assessment System'); ?></p>
+                        <p><?php echo esc_html('Pre-Consultation Report ini disiapkan di bawah pengawasan Medical Director EUROHAIRLAB by Dr. Scalp. Ini bukan diagnosis medis. Diagnosis akurat hanya dapat ditentukan melalui pemeriksaan langsung oleh dokter.'); ?></p>
+                    </div>
+                </div>
+                </div><?php /* .eh-precon-shell */ ?>
+            </body>
+            </html>
+            <?php
+            return;
+        }
+
         $name = eh_report_preview_value($report, 'patient.name', 'Unknown');
         $salutation = trim(eh_report_preview_value($report, 'patient.salutation', ''));
         $displayName = $salutation !== '' ? trim($salutation . ' ' . $name) : $name;
@@ -677,14 +1640,40 @@ if (!function_exists('eh_assessment_render_report_preview_html')) {
     }
 }
 
-if (!isset($report) || !is_array($report)) {
-    $submission_id = isset($_GET['submission_id']) ? (int) $_GET['submission_id'] : 8;
-    $submission = eh_assessment_get_submission_detail_row($submission_id);
+if (!function_exists('eh_assessment_resolve_report_preview_submission')) {
+    /**
+     * Admin report preview: use ?submission_id= when valid; otherwise newest submission row.
+     *
+     * @return array<string, mixed>
+     */
+    function eh_assessment_resolve_report_preview_submission(): array
+    {
+        $requested = isset($_GET['submission_id']) ? (int) $_GET['submission_id'] : 0;
+        if ($requested > 0) {
+            $submission = eh_assessment_get_submission_detail_row($requested);
+            if ($submission !== null) {
+                return $submission;
+            }
+        }
 
-    if (!$submission) {
-        wp_die('Submission not found.');
+        global $wpdb;
+        $table = eh_assessment_table_name();
+        $fallback_id = (int) $wpdb->get_var("SELECT id FROM `{$table}` ORDER BY id DESC LIMIT 1");
+        if ($fallback_id <= 0) {
+            wp_die('No assessment submissions yet. Create one first, or open this preview with ?submission_id=…');
+        }
+
+        $submission = eh_assessment_get_submission_detail_row($fallback_id);
+        if ($submission === null) {
+            wp_die('Submission not found.');
+        }
+
+        return $submission;
     }
+}
 
+if (!isset($report) || !is_array($report)) {
+    $submission = eh_assessment_resolve_report_preview_submission();
     $report = eh_assessment_build_report_data($submission);
 }
 

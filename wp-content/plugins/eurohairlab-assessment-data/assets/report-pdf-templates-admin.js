@@ -19,13 +19,71 @@
   }
 
   var IMAGE_FIELD_IDS = [
-    'rpt_treatment_rec_1_image',
-    'rpt_phase_of_hair_growth_male_image',
-    'rpt_phase_of_hair_growth_female_image',
-    'rpt_risk_untreated_image',
-    'rpt_treatment_rec_2_image',
-    'rpt_treatment_rec_3_image',
+    'rpt_image_clinical_knowledge',
+    'rpt_image_treatment_journey',
   ];
+
+  var WYSIWYG_FIELD_IDS = Array.isArray(cfg.wysiwygFieldIds) ? cfg.wysiwygFieldIds : [];
+
+  function destroyWysiwygs() {
+    if (!WYSIWYG_FIELD_IDS.length || !window.wp || !wp.editor || typeof wp.editor.remove !== 'function') {
+      return;
+    }
+    WYSIWYG_FIELD_IDS.forEach(function (id) {
+      var ta = document.getElementById(id);
+      if (ta) {
+        ta.removeAttribute('data-eh-editor-init');
+      }
+      try {
+        wp.editor.remove(id);
+      } catch (e) {
+        /* ignore */
+      }
+    });
+  }
+
+  function initWysiwygs() {
+    if (!WYSIWYG_FIELD_IDS.length || !window.wp || !wp.editor || typeof wp.editor.initialize !== 'function') {
+      return;
+    }
+    WYSIWYG_FIELD_IDS.forEach(function (id) {
+      var ta = document.getElementById(id);
+      if (!ta || ta.getAttribute('data-eh-editor-init') === '1') {
+        return;
+      }
+      var tinymceOpts = {
+        height: 220,
+        menubar: false,
+        branding: false,
+        resize: true,
+        wp_autoresize_on: true,
+        toolbar1:
+          'formatselect,bold,italic,bullist,numlist,blockquote,link,unlink,alignleft,aligncenter,alignright,undo,redo',
+      };
+      if (typeof wp.editor.getDefaultSettings === 'function') {
+        var defs = wp.editor.getDefaultSettings();
+        if (defs && defs.tinymce && typeof defs.tinymce === 'object') {
+          tinymceOpts = Object.assign({}, defs.tinymce, tinymceOpts);
+        }
+      }
+      wp.editor.initialize(id, {
+        tinymce: tinymceOpts,
+        quicktags: true,
+      });
+      ta.setAttribute('data-eh-editor-init', '1');
+    });
+  }
+
+  function syncWysiwygToTextareas() {
+    if (window.tinyMCE) {
+      WYSIWYG_FIELD_IDS.forEach(function (id) {
+        var ed = tinyMCE.get(id);
+        if (ed && !ed.isHidden()) {
+          ed.save();
+        }
+      });
+    }
+  }
 
   function normalizeImageValue(value) {
     if (value == null) {
@@ -140,38 +198,52 @@
   var ROW_MAP = [
     ['masking_id', 'rpt_masking_id'],
     ['report_title', 'rpt_report_title'],
+    ['report_header_title', 'rpt_report_header_title'],
+    ['subtitle', 'rpt_subtitle'],
+    ['greeting_description', 'rpt_greeting_description'],
     ['diagnosis_name', 'rpt_diagnosis_name'],
-    ['diagnosis_description', 'rpt_diagnosis_description'],
-    ['clinical_desc_1', 'rpt_clinical_desc_1'],
-    ['clinical_desc_2', 'rpt_clinical_desc_2'],
-    ['clinical_desc_3', 'rpt_clinical_desc_3'],
-    ['risk_delayed_description', 'rpt_risk_delayed_description'],
-    ['risk_untreated_image', 'rpt_risk_untreated_image'],
-    ['treatment_rec_1_title', 'rpt_treatment_rec_1_title'],
-    ['treatment_rec_1_description', 'rpt_treatment_rec_1_description'],
-    ['treatment_rec_1_image', 'rpt_treatment_rec_1_image'],
-    ['phase_of_hair_growth_male_image', 'rpt_phase_of_hair_growth_male_image'],
-    ['phase_of_hair_growth_female_image', 'rpt_phase_of_hair_growth_female_image'],
-    ['treatment_rec_2_title', 'rpt_treatment_rec_2_title'],
-    ['treatment_rec_2_description', 'rpt_treatment_rec_2_description'],
-    ['treatment_rec_2_image', 'rpt_treatment_rec_2_image'],
-    ['treatment_rec_3_title', 'rpt_treatment_rec_3_title'],
-    ['treatment_rec_3_description', 'rpt_treatment_rec_3_description'],
-    ['treatment_rec_3_image', 'rpt_treatment_rec_3_image'],
+    ['title_condition_explanation', 'rpt_title_condition_explanation'],
+    ['description_condition_explanation', 'rpt_description_condition_explanation'],
+    ['title_clinical_knowledge', 'rpt_title_clinical_knowledge'],
+    ['subtitle_clinical_knowledge', 'rpt_subtitle_clinical_knowledge'],
+    ['image_clinical_knowledge', 'rpt_image_clinical_knowledge'],
+    ['description_clinical_knowledge', 'rpt_description_clinical_knowledge'],
+    ['title_evaluation_urgency', 'rpt_title_evaluation_urgency'],
+    ['description_evaluation_urgency', 'rpt_description_evaluation_urgency'],
+    ['title_treatment_journey', 'rpt_title_treatment_journey'],
+    ['description_treatment_journey', 'rpt_description_treatment_journey'],
+    ['image_treatment_journey', 'rpt_image_treatment_journey'],
+    ['title_recommendation_approach', 'rpt_title_recommendation_approach'],
+    ['description_recommendation_approach', 'rpt_description_recommendation_approach'],
+    ['detail_recommendation_approach', 'rpt_detail_recommendation_approach'],
+    ['bottom_description_recommendation_approach', 'rpt_bottom_description_recommendation_approach'],
+    ['title_next_steps', 'rpt_title_next_steps'],
+    ['description_next_steps', 'rpt_description_next_steps'],
+    ['title_medical_notes', 'rpt_title_medical_notes'],
+    ['description_medical_notes', 'rpt_description_medical_notes'],
   ];
 
   function setVal(name, value) {
+    var v = value == null ? '' : String(value);
     var el = form.querySelector('[name="' + name + '"]');
     if (!el) {
       return;
     }
-    el.value = value == null ? '' : String(value);
+    if (window.tinyMCE) {
+      var ed = tinyMCE.get(name);
+      if (ed && !ed.isHidden()) {
+        ed.setContent(v);
+        return;
+      }
+    }
+    el.value = v;
     if (IMAGE_FIELD_IDS.indexOf(name) !== -1) {
       updateMediaPreview(name, el.value);
     }
   }
 
   function clearForm() {
+    destroyWysiwygs();
     form.reset();
     var idField = document.getElementById('eh-rpt-field-id');
     if (idField) {
@@ -180,6 +252,7 @@
     ROW_MAP.forEach(function (pair) {
       setVal(pair[1], '');
     });
+    setVal('rpt_report_header_title', 'HAIR HEALTH');
     refreshAllImagePreviews();
     maskingInput.removeAttribute('readonly');
     maskingInput.value = '';
@@ -199,6 +272,16 @@
       setVal(formName, row[dbKey]);
     });
     refreshAllImagePreviews();
+    window.requestAnimationFrame(function () {
+      initWysiwygs();
+      ROW_MAP.forEach(function (pair) {
+        var dbKey = pair[0];
+        var formName = pair[1];
+        if (WYSIWYG_FIELD_IDS.indexOf(formName) !== -1) {
+          setVal(formName, row[dbKey]);
+        }
+      });
+    });
   }
 
   function openModal() {
@@ -207,6 +290,7 @@
   }
 
   function closeModal() {
+    destroyWysiwygs();
     modal.style.display = 'none';
     document.body.style.overflow = '';
     loading.style.display = 'none';
@@ -219,6 +303,9 @@
     form.style.display = 'block';
     loading.style.display = 'none';
     openModal();
+    window.requestAnimationFrame(function () {
+      initWysiwygs();
+    });
     maskingInput.focus();
   }
 
@@ -296,6 +383,12 @@
       closeModal();
     }
   });
+
+  if (form) {
+    form.addEventListener('submit', function () {
+      syncWysiwygToTextareas();
+    });
+  }
 
   bindMediaButtons();
 

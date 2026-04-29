@@ -41,6 +41,18 @@ add_filter('use_block_editor_for_post_type', function ($use_block_editor, $post_
     return $use_block_editor;
 }, 10, 2);
 
+/**
+ * Local only: Tailwind Play CDN. Staging/production use compiled {@see tailwind-built.css} from `npm run build:css` or Docker.
+ */
+function eurohairlab_use_tailwind_play_cdn(): bool
+{
+    if (!defined('WP_ENV')) {
+        return false;
+    }
+
+    return strtolower(trim((string) WP_ENV)) === 'local';
+}
+
 function eurohairlab_enqueue_assets(): void
 {
     $script_dependencies = [];
@@ -52,46 +64,61 @@ function eurohairlab_enqueue_assets(): void
         null
     );
 
-    wp_enqueue_script('tailwind-cdn', 'https://cdn.tailwindcss.com', [], null, false);
+    $theme_style_deps = [];
 
-    $tailwind_config = [
-        'theme' => [
-            'extend' => [
-                'fontFamily' => [
-                    'sans' => ['Inter', 'system-ui', 'sans-serif'],
-                    'display' => ['Montserrat', 'system-ui', 'sans-serif'],
-                    'futuraHv' => ['Futura Hv BT', 'Futura BT', 'sans-serif'],
-                    'futuraBk' => ['Futura Bk BT', 'Futura BT', 'sans-serif'],
-                ],
-                'colors' => [
-                    'ink' => '#121012',
-                    'sand' => '#f6f5f1',
-                    'blush' => '#dea093',
-                    'mist' => '#999999',
-                    'cocoa' => '#8d5f56',
-                    'eh-ink' => '#231F20',
-                    'eh-coral' => '#DEA093',
-                    'eh-muted' => '#686869',
-                    'eh-sand-num' => '#D5BBA0',
-                    'eh-panel' => '#D9D9D9',
-                ],
-                'boxShadow' => [
-                    'soft' => '0 24px 80px rgba(18, 16, 18, 0.16)',
+    if (eurohairlab_use_tailwind_play_cdn()) {
+        wp_enqueue_script('tailwind-cdn', 'https://cdn.tailwindcss.com', [], null, false);
+
+        $tailwind_config = [
+            'theme' => [
+                'extend' => [
+                    'fontFamily' => [
+                        'sans' => ['Inter', 'system-ui', 'sans-serif'],
+                        'display' => ['Montserrat', 'system-ui', 'sans-serif'],
+                        'futuraHv' => ['Futura Hv BT', 'Futura BT', 'sans-serif'],
+                        'futuraBk' => ['Futura Bk BT', 'Futura BT', 'sans-serif'],
+                    ],
+                    'colors' => [
+                        'ink' => '#121012',
+                        'sand' => '#f6f5f1',
+                        'blush' => '#dea093',
+                        'mist' => '#999999',
+                        'cocoa' => '#8d5f56',
+                        'eh-ink' => '#231F20',
+                        'eh-coral' => '#DEA093',
+                        'eh-muted' => '#686869',
+                        'eh-sand-num' => '#D5BBA0',
+                        'eh-panel' => '#D9D9D9',
+                    ],
+                    'boxShadow' => [
+                        'soft' => '0 24px 80px rgba(18, 16, 18, 0.16)',
+                    ],
                 ],
             ],
-        ],
-    ];
+        ];
 
-    wp_add_inline_script(
-        'tailwind-cdn',
-        'tailwind.config = ' . wp_json_encode($tailwind_config, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP) . ';',
-        'after'
-    );
+        wp_add_inline_script(
+            'tailwind-cdn',
+            'tailwind.config = ' . wp_json_encode($tailwind_config, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP) . ';',
+            'after'
+        );
+    } else {
+        $tailwind_built_path = get_template_directory() . '/assets/css/tailwind-built.css';
+        if (is_readable($tailwind_built_path)) {
+            wp_enqueue_style(
+                'eurohairlab-tailwind',
+                get_template_directory_uri() . '/assets/css/tailwind-built.css',
+                [],
+                filemtime($tailwind_built_path)
+            );
+            $theme_style_deps[] = 'eurohairlab-tailwind';
+        }
+    }
 
     wp_enqueue_style(
         'eurohairlab-theme',
         get_template_directory_uri() . '/assets/css/app.css',
-        [],
+        $theme_style_deps,
         filemtime(get_template_directory() . '/assets/css/app.css')
     );
 
@@ -197,7 +224,9 @@ function eurohairlab_resource_hints(array $urls, string $relation_type): array
             'href' => 'https://fonts.gstatic.com',
             'crossorigin',
         ];
-        $urls[] = 'https://cdn.tailwindcss.com';
+        if (eurohairlab_use_tailwind_play_cdn()) {
+            $urls[] = 'https://cdn.tailwindcss.com';
+        }
     }
 
     return $urls;
