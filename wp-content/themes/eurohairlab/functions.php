@@ -27,6 +27,16 @@ function eurohairlab_theme_setup(): void
 }
 add_action('after_setup_theme', 'eurohairlab_theme_setup');
 
+/**
+ * Favicon: temporarily disable WP site icon output (restore by removing this hook).
+ * Core registers {@see wp_site_icon} on {@see wp_head} at priority 99.
+ */
+function eurohairlab_disable_site_icon_output(): void
+{
+    remove_action('wp_head', 'wp_site_icon', 99);
+}
+add_action('init', 'eurohairlab_disable_site_icon_output');
+
 function eurohairlab_remove_page_editor(): void
 {
     remove_post_type_support('page', 'editor');
@@ -42,7 +52,7 @@ add_filter('use_block_editor_for_post_type', function ($use_block_editor, $post_
 }, 10, 2);
 
 /**
- * Local only: Tailwind Play CDN. Staging/production use compiled {@see tailwind-built.css} from `npm run build:css` or Docker.
+ * Local only: force Tailwind Play CDN (same config as marketing surfaces below).
  */
 function eurohairlab_use_tailwind_play_cdn(): bool
 {
@@ -51,6 +61,45 @@ function eurohairlab_use_tailwind_play_cdn(): bool
     }
 
     return strtolower(trim((string) WP_ENV)) === 'local';
+}
+
+/**
+ * Main marketing surfaces: home, about, blog, treatments, etc. Use Tailwind CDN for now (JIT) instead of compiled {@see tailwind-built.css}.
+ */
+function eurohairlab_is_tailwind_cdn_marketing_surface(): bool
+{
+    if (is_front_page()) {
+        return true;
+    }
+
+    if (is_page([
+        'home',
+        'about',
+        'contact',
+        'blog-list',
+        'diagnosis',
+        'treatments',
+        'treatment-programs',
+        'results',
+        'promo',
+    ])) {
+        return true;
+    }
+
+    if (is_singular('post')) {
+        return true;
+    }
+
+    if (is_home() && !is_front_page()) {
+        return true;
+    }
+
+    return false;
+}
+
+function eurohairlab_should_enqueue_tailwind_via_cdn(): bool
+{
+    return eurohairlab_use_tailwind_play_cdn() || eurohairlab_is_tailwind_cdn_marketing_surface();
 }
 
 function eurohairlab_enqueue_assets(): void
@@ -66,7 +115,7 @@ function eurohairlab_enqueue_assets(): void
 
     $theme_style_deps = [];
 
-    if (eurohairlab_use_tailwind_play_cdn()) {
+    if (eurohairlab_should_enqueue_tailwind_via_cdn()) {
         wp_enqueue_script('tailwind-cdn', 'https://cdn.tailwindcss.com', [], null, false);
 
         $tailwind_config = [
@@ -224,7 +273,7 @@ function eurohairlab_resource_hints(array $urls, string $relation_type): array
             'href' => 'https://fonts.gstatic.com',
             'crossorigin',
         ];
-        if (eurohairlab_use_tailwind_play_cdn()) {
+        if (eurohairlab_should_enqueue_tailwind_via_cdn()) {
             $urls[] = 'https://cdn.tailwindcss.com';
         }
     }
