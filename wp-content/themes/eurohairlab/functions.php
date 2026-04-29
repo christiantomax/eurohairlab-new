@@ -28,14 +28,38 @@ function eurohairlab_theme_setup(): void
 add_action('after_setup_theme', 'eurohairlab_theme_setup');
 
 /**
- * Favicon: temporarily disable WP site icon output (restore by removing this hook).
- * Core registers {@see wp_site_icon} on {@see wp_head} at priority 99.
+ * Browsers request /favicon.ico by default; without a file at the web root that yields 404 in DevTools.
+ * Short-circuit so the request never reaches WP’s 404 template (no body; not an error).
  */
-function eurohairlab_disable_site_icon_output(): void
+function eurohairlab_short_circuit_favicon_ico_request(): void
 {
-    remove_action('wp_head', 'wp_site_icon', 99);
+    if (PHP_SAPI === 'cli' || wp_doing_ajax() || wp_doing_cron()) {
+        return;
+    }
+
+    $request_path = parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH);
+    if (!is_string($request_path) || $request_path === '') {
+        return;
+    }
+
+    $home_path = parse_url(home_url('/'), PHP_URL_PATH);
+    $home_path = is_string($home_path) ? '/' . trim($home_path, '/') : '';
+    $home_prefix = ($home_path === '/' || $home_path === '') ? '' : $home_path;
+
+    $allowed = ['/favicon.ico'];
+    if ($home_prefix !== '') {
+        $allowed[] = $home_prefix . '/favicon.ico';
+    }
+
+    if (!in_array($request_path, $allowed, true)) {
+        return;
+    }
+
+    nocache_headers();
+    status_header(204);
+    exit;
 }
-add_action('init', 'eurohairlab_disable_site_icon_output');
+add_action('init', 'eurohairlab_short_circuit_favicon_ico_request', 0);
 
 function eurohairlab_remove_page_editor(): void
 {
