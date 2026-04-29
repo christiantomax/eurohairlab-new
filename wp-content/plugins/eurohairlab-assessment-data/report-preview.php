@@ -221,9 +221,10 @@ if (!function_exists('eh_assessment_render_report_preview_html')) {
             $clinicalImage = eh_report_preview_treatment_image_src((string) ($template['image_clinical_knowledge'] ?? ''), '');
             $journeyImage = eh_report_preview_treatment_image_src((string) ($template['image_treatment_journey'] ?? ''), '');
             $is_pdf_render = defined('EH_ASSESSMENT_REPORT_PDF_RENDER') && EH_ASSESSMENT_REPORT_PDF_RENDER;
-            $bandStr = trim((string) ($report['computed']['band'] ?? ''));
-            $diagDetailStr = trim((string) ($template['diagnosis_name_detail'] ?? ''));
-            $resultSubStr = $diagDetailStr !== '' ? $diagDetailStr : $bandStr;
+            $resultSubStr = trim((string) ($template['diagnosis_name_detail'] ?? ''));
+            if ($resultSubStr === '' || strcasecmp($resultSubStr, 'null') === 0) {
+                $resultSubStr = '';
+            }
             $preconReportType = (int) ($report['report_type'] ?? 0);
             /** Report 2 (genetic hair loss): subtitle + clinical image stacked vertically (not two columns). */
             $preconClinicalKnowledgeStacked = ($preconReportType === 2);
