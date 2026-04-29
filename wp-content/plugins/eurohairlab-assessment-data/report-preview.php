@@ -207,6 +207,8 @@ if (!function_exists('eh_assessment_render_report_preview_html')) {
             $journeyImage = eh_report_preview_treatment_image_src((string) ($template['image_treatment_journey'] ?? ''), '');
             $is_pdf_render = defined('EH_ASSESSMENT_REPORT_PDF_RENDER') && EH_ASSESSMENT_REPORT_PDF_RENDER;
             $bandStr = trim((string) ($report['computed']['band'] ?? ''));
+            $diagDetailStr = trim((string) ($template['diagnosis_name_detail'] ?? ''));
+            $resultSubStr = $diagDetailStr !== '' ? $diagDetailStr : $bandStr;
             $submittedAt = trim((string) ($report['submission']['submitted_at'] ?? ''));
             $reportDateLabel = '';
             if ($submittedAt !== '' && function_exists('eh_assessment_format_indonesian_date')) {
@@ -1059,8 +1061,8 @@ if (!function_exists('eh_assessment_render_report_preview_html')) {
                             <div class="eh-precon-result-wrap">
                                 <div class="eh-precon-result-pill">
                                     <div class="eh-precon-result-title"><?php echo esc_html($diagPlain); ?></div>
-                                    <?php if ($bandStr !== '') : ?>
-                                        <p class="eh-precon-result-sub">(<?php echo esc_html($bandStr); ?>)</p>
+                                    <?php if ($resultSubStr !== '') : ?>
+                                        <p class="eh-precon-result-sub">(<?php echo esc_html($resultSubStr); ?>)</p>
                                     <?php endif; ?>
                                 </div>
                             </div>
@@ -1146,7 +1148,7 @@ if (!function_exists('eh_assessment_render_report_preview_html')) {
                     </div>
                     <div class="eh-precon-block">
                         <div class="eh-precon-heading"><?php echo esc_html((string) ($template['title_medical_notes'] ?? '')); ?></div>
-                        <div class="eh-precon-body-copy"><?php echo $renderHtml((string) ($template['description_medical_notes'] ?? '')); ?></div>
+                        <div class="eh-precon-body-copy"><?php echo $renderHtml((string) ($template['body_medical_notes'] ?? '')); ?></div>
                     </div>
                     <div class="eh-precon-legal-note">
                         <p><?php echo esc_html('Disiapkan oleh EUROHAIRLAB Clinical Assessment System'); ?></p>

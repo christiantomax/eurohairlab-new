@@ -430,6 +430,7 @@ function eh_assessment_report_pdf_template_row_from_post(): array
         'subtitle' => $str('rpt_subtitle', 255),
         'greeting_description' => $html('rpt_greeting_description'),
         'diagnosis_name' => $html('rpt_diagnosis_name'),
+        'diagnosis_name_detail' => $str('rpt_diagnosis_name_detail', 255),
         'title_condition_explanation' => $str('rpt_title_condition_explanation', 255),
         'description_condition_explanation' => $html('rpt_description_condition_explanation'),
         'title_clinical_knowledge' => $str('rpt_title_clinical_knowledge', 255),
@@ -448,6 +449,7 @@ function eh_assessment_report_pdf_template_row_from_post(): array
         'title_next_steps' => $str('rpt_title_next_steps', 255),
         'description_next_steps' => $html('rpt_description_next_steps'),
         'title_medical_notes' => $str('rpt_title_medical_notes', 255),
+        'body_medical_notes' => $html('rpt_body_medical_notes'),
         'description_medical_notes' => $html('rpt_description_medical_notes'),
     ];
 }
@@ -2348,6 +2350,7 @@ function eh_assessment_create_tables(): void
         subtitle VARCHAR(255) NOT NULL DEFAULT '',
         greeting_description LONGTEXT NULL,
         diagnosis_name LONGTEXT NULL,
+        diagnosis_name_detail VARCHAR(255) NOT NULL DEFAULT '',
         title_condition_explanation VARCHAR(255) NOT NULL DEFAULT '',
         description_condition_explanation LONGTEXT NULL,
         title_clinical_knowledge VARCHAR(255) NOT NULL DEFAULT '',
@@ -2366,6 +2369,7 @@ function eh_assessment_create_tables(): void
         title_next_steps VARCHAR(255) NOT NULL DEFAULT '',
         description_next_steps LONGTEXT NULL,
         title_medical_notes VARCHAR(255) NOT NULL DEFAULT '',
+        body_medical_notes LONGTEXT NULL,
         description_medical_notes LONGTEXT NULL,
         deleted_at DATETIME NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -2896,6 +2900,106 @@ function eh_assessment_migrate_v203_report_pdf_template_report_header_title(): v
 }
 
 /**
+ * Pre-Consultation: body copy under “CATATAN MEDIS” lives in body_medical_notes; description_medical_notes is footer-only.
+ */
+function eh_assessment_migrate_v204_report_pdf_template_body_medical_notes(): void
+{
+    if ((string) get_option('eh_assessment_v204_rpt_tpl_body_medical_notes', '') === '1') {
+        return;
+    }
+
+    global $wpdb;
+    $table = eh_assessment_report_pdf_template_table_name();
+    $found = (string) $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table));
+    if ($found !== $table) {
+        update_option('eh_assessment_v204_rpt_tpl_body_medical_notes', '1');
+
+        return;
+    }
+
+    if (!eh_assessment_report_pdf_template_table_has_column('body_medical_notes')) {
+        $wpdb->query(
+            "ALTER TABLE `{$table}` ADD COLUMN body_medical_notes LONGTEXT NULL AFTER title_medical_notes"
+        );
+    }
+
+    $wpdb->query(
+        "UPDATE `{$table}` SET body_medical_notes = description_medical_notes
+         WHERE (body_medical_notes IS NULL OR TRIM(body_medical_notes) = '')
+         AND description_medical_notes IS NOT NULL
+         AND TRIM(description_medical_notes) <> ''"
+    );
+
+    $seed_file = __DIR__ . '/eh-assessment-seed-precon-report-templates.php';
+    if (is_readable($seed_file)) {
+        require_once $seed_file;
+        $seeds = eh_assessment_precon_report_pdf_template_seed_rows();
+        $now = eh_assessment_current_mysql_time();
+        foreach ($seeds as $masking_id => $row) {
+            if (!isset($row['body_medical_notes'])) {
+                continue;
+            }
+            $payload = [
+                'body_medical_notes' => $row['body_medical_notes'],
+                'updated_at' => $now,
+            ];
+            if (array_key_exists('description_medical_notes', $row)) {
+                $payload['description_medical_notes'] = $row['description_medical_notes'];
+            }
+            $formats = array_fill(0, count($payload), '%s');
+            $wpdb->update($table, $payload, ['masking_id' => $masking_id], $formats, ['%s']);
+        }
+    }
+
+    update_option('eh_assessment_v204_rpt_tpl_body_medical_notes', '1');
+}
+
+/**
+ * Pre-Consultation score pill subtitle: template {@see diagnosis_name_detail}, else submission computed band.
+ */
+function eh_assessment_migrate_v205_report_pdf_template_diagnosis_name_detail(): void
+{
+    if ((string) get_option('eh_assessment_v205_rpt_tpl_diagnosis_name_detail', '') === '1') {
+        return;
+    }
+
+    global $wpdb;
+    $table = eh_assessment_report_pdf_template_table_name();
+    $found = (string) $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table));
+    if ($found !== $table) {
+        update_option('eh_assessment_v205_rpt_tpl_diagnosis_name_detail', '1');
+
+        return;
+    }
+
+    if (!eh_assessment_report_pdf_template_table_has_column('diagnosis_name_detail')) {
+        $wpdb->query(
+            "ALTER TABLE `{$table}` ADD COLUMN diagnosis_name_detail VARCHAR(255) NOT NULL DEFAULT '' AFTER diagnosis_name"
+        );
+    }
+
+    $seed_file = __DIR__ . '/eh-assessment-seed-precon-report-templates.php';
+    if (is_readable($seed_file)) {
+        require_once $seed_file;
+        $seeds = eh_assessment_precon_report_pdf_template_seed_rows();
+        $now = eh_assessment_current_mysql_time();
+        foreach ($seeds as $masking_id => $row) {
+            if (!array_key_exists('diagnosis_name_detail', $row)) {
+                continue;
+            }
+            $payload = [
+                'diagnosis_name_detail' => (string) $row['diagnosis_name_detail'],
+                'updated_at' => $now,
+            ];
+            $formats = array_fill(0, count($payload), '%s');
+            $wpdb->update($table, $payload, ['masking_id' => $masking_id], $formats, ['%s']);
+        }
+    }
+
+    update_option('eh_assessment_v205_rpt_tpl_diagnosis_name_detail', '1');
+}
+
+/**
  * Remove submission soft-delete: UNIQUE masked_id must stay global; trash rows blocked new IDs.
  */
 function eh_assessment_migrate_v179_drop_submission_deleted_at(): void
@@ -3131,6 +3235,8 @@ function eh_assessment_activate(): void
     eh_assessment_migrate_v200_report_pdf_template_precon_fields();
     eh_assessment_migrate_v201_report_pdf_template_drop_legacy_fields();
     eh_assessment_migrate_v203_report_pdf_template_report_header_title();
+    eh_assessment_migrate_v204_report_pdf_template_body_medical_notes();
+    eh_assessment_migrate_v205_report_pdf_template_diagnosis_name_detail();
     eh_assessment_migrate_v202_report_pdf_template_seed_precon_defaults();
     eh_assessment_migrate_v179_drop_submission_deleted_at();
     eh_assessment_migrate_v180_report_pdf_template_risk_untreated_image();
@@ -3163,6 +3269,8 @@ function eh_assessment_maybe_upgrade(): void
     eh_assessment_migrate_v200_report_pdf_template_precon_fields();
     eh_assessment_migrate_v201_report_pdf_template_drop_legacy_fields();
     eh_assessment_migrate_v203_report_pdf_template_report_header_title();
+    eh_assessment_migrate_v204_report_pdf_template_body_medical_notes();
+    eh_assessment_migrate_v205_report_pdf_template_diagnosis_name_detail();
     eh_assessment_migrate_v202_report_pdf_template_seed_precon_defaults();
     eh_assessment_migrate_v179_drop_submission_deleted_at();
     eh_assessment_migrate_v181_branch_outlet_display_name();
@@ -5202,6 +5310,8 @@ function eh_assessment_handle_admin_actions(): void
         eh_assessment_migrate_v200_report_pdf_template_precon_fields();
         eh_assessment_migrate_v201_report_pdf_template_drop_legacy_fields();
         eh_assessment_migrate_v203_report_pdf_template_report_header_title();
+        eh_assessment_migrate_v204_report_pdf_template_body_medical_notes();
+        eh_assessment_migrate_v205_report_pdf_template_diagnosis_name_detail();
         eh_assessment_migrate_v202_report_pdf_template_seed_precon_defaults();
         eh_assessment_migrate_v181_branch_outlet_display_name();
         $cekat = eh_assessment_parse_cekat_row_from_post();
@@ -5902,6 +6012,7 @@ function eh_assessment_handle_admin_actions(): void
             'subtitle' => $data['subtitle'],
             'greeting_description' => $data['greeting_description'],
             'diagnosis_name' => $data['diagnosis_name'],
+            'diagnosis_name_detail' => $data['diagnosis_name_detail'],
             'title_condition_explanation' => $data['title_condition_explanation'],
             'description_condition_explanation' => $data['description_condition_explanation'],
             'title_clinical_knowledge' => $data['title_clinical_knowledge'],
@@ -5920,6 +6031,7 @@ function eh_assessment_handle_admin_actions(): void
             'title_next_steps' => $data['title_next_steps'],
             'description_next_steps' => $data['description_next_steps'],
             'title_medical_notes' => $data['title_medical_notes'],
+            'body_medical_notes' => $data['body_medical_notes'],
             'description_medical_notes' => $data['description_medical_notes'],
             'updated_at' => $now,
         ];
@@ -6891,6 +7003,7 @@ function eh_assessment_report_pdf_template_form_sections(): array
             'title' => 'Section diagnosis',
             'fields' => [
                 ['rpt_diagnosis_name', 'Diagnosis name', 'wysiwyg', 'diagnosis_name'],
+                ['rpt_diagnosis_name_detail', 'Diagnosis name detail', 'text', 'diagnosis_name_detail'],
             ],
         ],
         [
@@ -6944,6 +7057,7 @@ function eh_assessment_report_pdf_template_form_sections(): array
             'title' => 'Section medical notes',
             'fields' => [
                 ['rpt_title_medical_notes', 'Title medical notes', 'text', 'title_medical_notes'],
+                ['rpt_body_medical_notes', 'Description medical notes', 'wysiwyg', 'body_medical_notes'],
             ],
         ],
         [
@@ -7854,6 +7968,8 @@ function eh_assessment_migrate_role_access_and_user_assignments(): void
     eh_assessment_migrate_v200_report_pdf_template_precon_fields();
     eh_assessment_migrate_v201_report_pdf_template_drop_legacy_fields();
     eh_assessment_migrate_v203_report_pdf_template_report_header_title();
+    eh_assessment_migrate_v204_report_pdf_template_body_medical_notes();
+    eh_assessment_migrate_v205_report_pdf_template_diagnosis_name_detail();
     eh_assessment_migrate_v202_report_pdf_template_seed_precon_defaults();
     eh_assessment_migrate_v181_branch_outlet_display_name();
     eh_assessment_migrate_v190_submission_computed_columns();

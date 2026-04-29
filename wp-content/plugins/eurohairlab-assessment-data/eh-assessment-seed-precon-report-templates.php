@@ -22,7 +22,8 @@ HTML;
 HTML;
 
     $medical = <<<'HTML'
-<p>Dokumen ini adalah Pre-Consultation Report yang disusun berdasarkan jawaban kuesioner online, bukan diagnosis medis. Kondisi rambut dan kulit kepala yang sesungguhnya hanya dapat ditentukan melalui pemeriksaan langsung oleh dokter EUROHAIRLAB by Dr. Scalp menggunakan Scalp Analyzer dan analisis riwayat medis lengkap. Hasil konsultasi klinis dapat berbeda dari gambaran dalam dokumen ini.</p>
+<p>Dokumen ini adalah Pre-Consultation Report yang disusun berdasarkan jawaban kuesioner online, bukan diagnosis medis.</p>
+<p>Kondisi rambut dan kulit kepala yang sesungguhnya hanya dapat ditentukan melalui pemeriksaan langsung oleh dokter EUROHAIRLAB by Dr. Scalp menggunakan Scalp Analyzer dan analisis riwayat medis lengkap. Hasil konsultasi klinis dapat berbeda dari gambaran dalam dokumen ini.</p>
 HTML;
 
     $common = [
@@ -37,7 +38,8 @@ HTML;
         'title_recommendation_approach' => 'REKOMENDASI PENDEKATAN',
         'title_next_steps' => 'LANGKAH SELANJUTNYA',
         'title_medical_notes' => 'CATATAN MEDIS',
-        'description_medical_notes' => $medical,
+        'body_medical_notes' => $medical,
+        'description_medical_notes' => '',
         'image_clinical_knowledge' => '',
         'image_treatment_journey' => '',
     ];
@@ -45,6 +47,7 @@ HTML;
     return [
         'RPT-2604-EI8NGTDQ' => array_merge($common, [
             'diagnosis_name' => 'Early Stage Hair Thinning',
+            'diagnosis_name_detail' => 'Hair Loss Aktif',
             'description_condition_explanation' => <<<'HTML'
 <p>Rambut Anda menunjukkan tanda-tanda penipisan pada tahap awal. Kondisi ini umumnya terjadi ketika siklus pertumbuhan rambut mulai mengalami perubahan. Rambut yang tumbuh menjadi lebih sedikit dan lebih halus dari sebelumnya.</p>
 <p>Pada fase ini, sebagian besar folikel rambut masih aktif namun mulai melemah akibat kombinasi faktor seperti hormonal, stres, atau gaya hidup. Ini adalah fase dengan peluang terbaik untuk intervensi.</p>
@@ -74,6 +77,7 @@ HTML,
         ]),
         'RPT-2604-BJGDY41C' => array_merge($common, [
             'diagnosis_name' => 'Genetic Hair Loss',
+            'diagnosis_name_detail' => 'Pola kerontokan genetik',
             'description_condition_explanation' => <<<'HTML'
 <p>Hair loss genetik berkembang bertahap dan cenderung memburuk tanpa penanganan yang tepat. Kondisi ini dapat dikelola secara efektif. Progresinya dapat diperlambat secara signifikan dengan protokol yang konsisten.</p>
 <p>Semakin dini kondisi ini ditangani, semakin besar yang bisa dipertahankan.</p>
@@ -104,6 +108,7 @@ HTML,
         ]),
         'RPT-2604-JSG53HZX' => array_merge($common, [
             'diagnosis_name' => 'Progressive Hair Loss',
+            'diagnosis_name_detail' => 'Kerontokan progresif',
             'description_condition_explanation' => <<<'HTML'
 <p>Rambut Anda mengalami penipisan yang berlangsung secara bertahap dan berkelanjutan. Hal ini menunjukkan adanya perubahan pada siklus pertumbuhan rambut, di mana folikel secara progresif menghasilkan rambut yang lebih tipis dari sebelumnya.</p>
 <p>Pada tahap ini, sebagian folikel masih dapat dioptimalkan, namun sebagian lainnya mulai mengalami miniaturisasi yang memerlukan pendekatan regeneratif aktif.</p>
@@ -134,6 +139,7 @@ HTML,
         ]),
         'RPT-2604-VVFZIE6O' => array_merge($common, [
             'diagnosis_name' => 'Stress / Lifestyle Hair Loss',
+            'diagnosis_name_detail' => 'Terkait stres & gaya hidup',
             'description_condition_explanation' => <<<'HTML'
 <p>Kerontokan rambut Anda kemungkinan dipicu oleh faktor stres, kurang tidur, atau perubahan gaya hidup. Kondisi ini mendorong folikel masuk ke fase istirahat lebih cepat, sehingga jumlah rambut yang rontok meningkat secara signifikan.</p>
 <p>Kondisi ini sering muncul 6–12 minggu setelah pemicu terjadi, sehingga sering terasa datang tiba-tiba padahal prosesnya sudah berlangsung sebelumnya.</p>
@@ -164,6 +170,7 @@ HTML,
         ]),
         'RPT-2604-SSKCEBYA' => array_merge($common, [
             'diagnosis_name' => 'Scalp Only',
+            'diagnosis_name_detail' => 'Fokus kesehatan kulit kepala',
             'description_condition_explanation' => <<<'HTML'
 <p>Kulit kepala Anda menunjukkan tanda-tanda ketidakseimbangan yang dapat mempengaruhi pertumbuhan rambut. Kondisi scalp yang tidak optimal menciptakan lingkungan yang kurang ideal bagi folikel, bahkan sebelum hair loss aktif terjadi.</p>
 <p>Scalp memiliki kelenjar sebaceous dengan densitas jauh lebih tinggi dibandingkan bagian kulit lainnya, menjadikannya sangat rentan terhadap ketidakseimbangan seperti sebum berlebih, inflamasi, atau sensitivitas.</p>
@@ -194,6 +201,7 @@ HTML,
         ]),
         'RPT-2604-7YWCOCJZ' => array_merge($common, [
             'diagnosis_name' => 'Multi-Factor Hair Loss',
+            'diagnosis_name_detail' => 'Multi-faktor',
             'description_condition_explanation' => <<<'HTML'
 <p>Kerontokan rambut Anda kemungkinan dipengaruhi oleh beberapa faktor yang bekerja secara bersamaan. Kondisi seperti ini memerlukan pendekatan yang lebih menyeluruh dibandingkan hair loss dengan faktor tunggal.</p>
 <p>Ketika multiple faktor aktif secara bersamaan, dampaknya tidak hanya menjumlahkan. Mereka saling memperkuat satu sama lain. Inilah mengapa pendekatan tunggal hampir tidak pernah memberikan hasil optimal untuk profil seperti ini.</p>
@@ -224,6 +232,7 @@ HTML,
         ]),
         'RPT-2604-FLIKQ4ZF' => array_merge($common, [
             'diagnosis_name' => 'Advanced Hair Loss',
+            'diagnosis_name_detail' => 'Kerontokan lanjut',
             'description_condition_explanation' => <<<'HTML'
 <p>Kerontokan rambut Anda sudah berlangsung cukup lama dengan penurunan kepadatan yang signifikan. Pada tahap ini, menentukan kondisi folikel secara akurat adalah langkah kritis sebelum treatment apapun dimulai.</p>
 <p>Trichoscopy memungkinkan dokter melihat kondisi folikel pada tingkat detail: mengidentifikasi folikel yang masih aktif, yang dormant, dan yang memerlukan pendekatan khusus.</p>
@@ -254,6 +263,7 @@ HTML,
         ]),
         'RPT-2604-M9ATNWOJ' => array_merge($common, [
             'diagnosis_name' => 'Optimasi — DEFAULT',
+            'diagnosis_name_detail' => 'Profil perawatan preventif',
             'description_condition_explanation' => <<<'HTML'
 <p>Kondisi rambut dan kulit kepala Anda saat ini berada dalam rentang yang baik. Ini adalah waktu yang tepat untuk membangun fondasi perawatan yang akan menjaga kualitas rambut Anda dalam jangka panjang.</p>
 <p>Rambut yang sehat hari ini tidak akan bertahan begitu saja tanpa perawatan yang tepat. Perubahan hormonal, akumulasi stres, dan faktor lingkungan bekerja diam-diam sebelum dampaknya terlihat.</p>
