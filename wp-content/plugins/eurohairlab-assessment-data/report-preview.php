@@ -193,6 +193,21 @@ if (!function_exists('eh_report_preview_score_card')) {
     }
 }
 
+if (!function_exists('eh_report_preview_precon_collapse_manual_line_breaks')) {
+    /**
+     * TinyMCE often inserts &lt;br&gt;, which forces short line boxes. Browsers then skip inter-word
+     * justification on those lines. Collapse breaks to spaces so the paragraph reflows as one measure.
+     */
+    function eh_report_preview_precon_collapse_manual_line_breaks(string $html): string
+    {
+        if ($html === '') {
+            return '';
+        }
+
+        return (string) preg_replace('#<br\s*/?>#iu', ' ', $html);
+    }
+}
+
 
 if (!function_exists('eh_assessment_render_report_preview_html')) {
     function eh_assessment_render_report_preview_html(array $report): void
@@ -235,7 +250,12 @@ if (!function_exists('eh_assessment_render_report_preview_html')) {
             $preconLogoSrc = eh_report_preview_asset_url($preconLogoFile);
             $renderHtml = static function (string $value): string {
                 $safe = wp_kses_post($value);
-                return $safe === '' ? '' : wpautop($safe);
+                if ($safe === '') {
+                    return '';
+                }
+                $safe = eh_report_preview_precon_collapse_manual_line_breaks($safe);
+
+                return wpautop($safe);
             };
             $diagPlain = trim(wp_strip_all_tags((string) ($template['diagnosis_name'] ?? '')));
             if ($diagPlain === '') {
@@ -328,18 +348,32 @@ if (!function_exists('eh_assessment_render_report_preview_html')) {
                         line-height: 1.45;
                         color: #303030;
                         text-align: justify;
+                        text-justify: inter-word;
+                        hyphens: auto;
+                        -webkit-hyphens: auto;
+                        overflow-wrap: break-word;
+                        word-break: normal;
                     }
                     html.eh-precon-pdf .eh-precon-body-copy p {
                         font-size: 12px;
                         line-height: 1.45;
                         color: #303030;
                         text-align: justify;
+                        text-justify: inter-word;
+                        text-align-last: left;
+                        hyphens: auto;
+                        -webkit-hyphens: auto;
+                        overflow-wrap: break-word;
+                        word-break: normal;
                     }
                     html.eh-precon-pdf .eh-precon-body-copy--clinical-knowledge,
                     html.eh-precon-pdf .eh-precon-body-copy--clinical-knowledge p,
                     html.eh-precon-pdf .eh-precon-body-copy--clinical-knowledge li {
                         font-size: 10px;
                         text-align: center;
+                        text-align-last: center;
+                        text-justify: auto;
+                        hyphens: manual;
                     }
                     html.eh-precon-pdf .eh-precon-body-copy--recommendation-intro {
                         text-align: center;
@@ -629,24 +663,46 @@ if (!function_exists('eh_assessment_render_report_preview_html')) {
                         line-height: 1.5;
                         margin: 0 0 8px;
                         text-align: justify;
+                        text-justify: inter-word;
+                        hyphens: auto;
+                        -webkit-hyphens: auto;
+                        overflow-wrap: break-word;
+                        word-break: normal;
                     }
                     .eh-precon-body-copy li {
                         font-size: 11px;
                         text-align: justify;
+                        text-justify: inter-word;
+                        hyphens: auto;
+                        -webkit-hyphens: auto;
+                        overflow-wrap: break-word;
+                        word-break: normal;
                     }
                     .eh-precon-body-copy p {
                         font-size: 12px;
                         margin: 0 0 10px;
                         text-align: justify;
+                        text-justify: inter-word;
+                        text-align-last: left;
+                        hyphens: auto;
+                        -webkit-hyphens: auto;
+                        overflow-wrap: break-word;
+                        word-break: normal;
                     }
                     .eh-precon-body-copy--clinical-knowledge {
                         text-align: center;
                         font-size: 10px;
+                        text-align-last: center;
+                        text-justify: auto;
+                        hyphens: manual;
                     }
                     .eh-precon-body-copy--clinical-knowledge p,
                     .eh-precon-body-copy--clinical-knowledge li {
                         font-size: 10px;
                         text-align: center;
+                        text-align-last: center;
+                        text-justify: auto;
+                        hyphens: manual;
                     }
                     .eh-precon-body-copy--recommendation-intro {
                         text-align: center;
@@ -841,18 +897,32 @@ if (!function_exists('eh_assessment_render_report_preview_html')) {
                         line-height: 1.55;
                         color: #333333;
                         text-align: justify;
+                        text-justify: inter-word;
+                        hyphens: auto;
+                        -webkit-hyphens: auto;
+                        overflow-wrap: break-word;
+                        word-break: normal;
                     }
                     html.eh-precon-html .eh-precon-body-copy p {
                         font-size: 12px;
                         line-height: 1.55;
                         color: #333333;
                         text-align: justify;
+                        text-justify: inter-word;
+                        text-align-last: left;
+                        hyphens: auto;
+                        -webkit-hyphens: auto;
+                        overflow-wrap: break-word;
+                        word-break: normal;
                     }
                     html.eh-precon-html .eh-precon-body-copy--clinical-knowledge,
                     html.eh-precon-html .eh-precon-body-copy--clinical-knowledge p,
                     html.eh-precon-html .eh-precon-body-copy--clinical-knowledge li {
                         font-size: 10px;
                         text-align: center;
+                        text-align-last: center;
+                        text-justify: auto;
+                        hyphens: manual;
                     }
                     html.eh-precon-html .eh-precon-body-copy--recommendation-intro {
                         text-align: center;

@@ -202,6 +202,7 @@
     ['subtitle', 'rpt_subtitle'],
     ['greeting_description', 'rpt_greeting_description'],
     ['diagnosis_name', 'rpt_diagnosis_name'],
+    ['diagnosis_name_detail', 'rpt_diagnosis_name_detail'],
     ['title_condition_explanation', 'rpt_title_condition_explanation'],
     ['description_condition_explanation', 'rpt_description_condition_explanation'],
     ['title_clinical_knowledge', 'rpt_title_clinical_knowledge'],
@@ -220,6 +221,7 @@
     ['title_next_steps', 'rpt_title_next_steps'],
     ['description_next_steps', 'rpt_description_next_steps'],
     ['title_medical_notes', 'rpt_title_medical_notes'],
+    ['body_medical_notes', 'rpt_body_medical_notes'],
     ['description_medical_notes', 'rpt_description_medical_notes'],
   ];
 
