@@ -106,6 +106,7 @@ function eurohairlab_is_tailwind_cdn_marketing_surface(): bool
         'treatment-programs',
         'results',
         'promo',
+        'assessment',
     ])) {
         return true;
     }
@@ -121,9 +122,33 @@ function eurohairlab_is_tailwind_cdn_marketing_surface(): bool
     return false;
 }
 
+/**
+ * Production hosts where the whole public theme should load Tailwind from the CDN (JIT), not {@see tailwind-built.css}.
+ * Requires {@see WP_ENV} === production so staging/dev hostnames are unaffected.
+ */
+function eurohairlab_should_use_tailwind_cdn_on_production_hosts(): bool
+{
+    if (!defined('WP_ENV') || strtolower(trim((string) WP_ENV)) !== 'production') {
+        return false;
+    }
+
+    $host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
+    $host = (string) (preg_replace('/:\d+$/', '', $host) ?? $host);
+
+    $production_hosts = [
+        'eurohairlab.com',
+        'www.eurohairlab.com',
+        'assessment.eurohairlab.com',
+    ];
+
+    return in_array($host, $production_hosts, true);
+}
+
 function eurohairlab_should_enqueue_tailwind_via_cdn(): bool
 {
-    return eurohairlab_use_tailwind_play_cdn() || eurohairlab_is_tailwind_cdn_marketing_surface();
+    return eurohairlab_use_tailwind_play_cdn()
+        || eurohairlab_is_tailwind_cdn_marketing_surface()
+        || eurohairlab_should_use_tailwind_cdn_on_production_hosts();
 }
 
 function eurohairlab_enqueue_assets(): void
