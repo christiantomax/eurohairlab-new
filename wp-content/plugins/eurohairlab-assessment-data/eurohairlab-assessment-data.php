@@ -75,6 +75,7 @@ function eh_hair_specialist_agent_table_name(): string
 }
 
 require_once __DIR__ . '/eh-assessment-hair-specialist-daily-overview.php';
+require_once __DIR__ . '/eh-assessment-admin-csv-export.php';
 
 function eh_assessment_report_pdf_template_table_name(): string
 {
@@ -388,6 +389,17 @@ function eh_assessment_pdf_parse_clinical_card(string $text, string $defaultTitl
 }
 
 /**
+ * Diagnosis name is stored as plain text (legacy WYSIWYG often saved &lt;p&gt;…&lt;/p&gt;).
+ */
+function eh_assessment_report_pdf_template_normalize_diagnosis_name_plain(string $raw): string
+{
+    $t = trim(wp_strip_all_tags(html_entity_decode($raw, ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+    $collapsed = preg_replace('/\s+/u', ' ', $t);
+
+    return $collapsed !== null ? $collapsed : $t;
+}
+
+/**
  * @return array<string, string>
  */
 function eh_assessment_report_pdf_template_row_from_post(): array
@@ -431,7 +443,9 @@ function eh_assessment_report_pdf_template_row_from_post(): array
         'report_header_title' => $str('rpt_report_header_title', 255),
         'subtitle' => $str('rpt_subtitle', 255),
         'greeting_description' => $html('rpt_greeting_description'),
-        'diagnosis_name' => $html('rpt_diagnosis_name'),
+        'diagnosis_name' => eh_assessment_report_pdf_template_normalize_diagnosis_name_plain(
+            isset($_POST['rpt_diagnosis_name']) ? wp_unslash((string) $_POST['rpt_diagnosis_name']) : ''
+        ),
         'diagnosis_name_detail' => $str('rpt_diagnosis_name_detail', 255),
         'title_condition_explanation' => $str('rpt_title_condition_explanation', 255),
         'description_condition_explanation' => $html('rpt_description_condition_explanation'),
@@ -1585,20 +1599,75 @@ function eh_assessment_normalize_whatsapp(string $value): string
     return $value;
 }
 
+/**
+ * Parse a stored admin date/datetime string for display in GMT+7.
+ * MySQL `Y-m-d` / `Y-m-d H:i:s` values are treated as wall clock in GMT+7; ISO strings with offset/Z are converted to GMT+7.
+ */
+function eh_assessment_parse_admin_instant(?string $raw): ?DateTimeImmutable
+{
+    if ($raw === null) {
+        return null;
+    }
+    $raw = trim($raw);
+    if ($raw === '' || $raw === '0000-00-00 00:00:00' || $raw === '0000-00-00') {
+        return null;
+    }
+
+    $tz7 = eh_assessment_gmt7_timezone();
+    if (preg_match('/^\d{4}-\d{2}-\d{2}([ T]\d{1,2}:\d{2}(:\d{2})?)?$/', $raw)) {
+        $norm = str_replace('T', ' ', $raw);
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $norm)) {
+            $norm .= ' 00:00:00';
+        }
+        $dt = date_create_immutable($norm, $tz7);
+
+        return $dt instanceof DateTimeImmutable ? $dt : null;
+    }
+
+    $dt = date_create_immutable($raw);
+    if (!$dt instanceof DateTimeImmutable) {
+        return null;
+    }
+
+    return $dt->setTimezone($tz7);
+}
+
+function eh_assessment_admin_english_month_abbr(int $monthNum): string
+{
+    static $abbr = [
+        1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr', 5 => 'May', 6 => 'Jun',
+        7 => 'Jul', 8 => 'Aug', 9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Dec',
+    ];
+
+    return $abbr[$monthNum] ?? '—';
+}
+
+/** Calendar date for admin tables, e.g. `20 May 2026` (GMT+7 when parsed from a datetime). */
+function eh_assessment_format_admin_date(?string $date): string
+{
+    if ($date === null || trim($date) === '') {
+        return '—';
+    }
+    $dt = eh_assessment_parse_admin_instant($date);
+    if (!$dt instanceof DateTimeImmutable) {
+        return trim($date);
+    }
+
+    return (int) $dt->format('j') . ' ' . eh_assessment_admin_english_month_abbr((int) $dt->format('n')) . ' ' . $dt->format('Y');
+}
+
+/** Date and time for admin tables, e.g. `20 May 2026 17:00 (GMT+7)`. */
 function eh_assessment_format_admin_datetime(?string $datetime): string
 {
-    if (!$datetime) {
-        return '-';
+    if ($datetime === null || trim($datetime) === '') {
+        return '—';
+    }
+    $dt = eh_assessment_parse_admin_instant($datetime);
+    if (!$dt instanceof DateTimeImmutable) {
+        return trim($datetime);
     }
 
-    $timezone = eh_assessment_gmt7_timezone();
-    $date = date_create_immutable($datetime, $timezone);
-
-    if (!$date) {
-        return $datetime;
-    }
-
-    return $date->format('Y-m-d H:i:s');
+    return (int) $dt->format('j') . ' ' . eh_assessment_admin_english_month_abbr((int) $dt->format('n')) . ' ' . $dt->format('Y') . ' ' . $dt->format('H:i') . ' (GMT+7)';
 }
 
 function eh_assessment_get_current_user()
@@ -3002,6 +3071,46 @@ function eh_assessment_migrate_v205_report_pdf_template_diagnosis_name_detail():
 }
 
 /**
+ * Strip HTML from report PDF template `diagnosis_name` (one-time data cleanup).
+ */
+function eh_assessment_migrate_v211_report_pdf_template_diagnosis_name_plain(): void
+{
+    if ((string) get_option('eh_assessment_v211_rpt_tpl_diagnosis_name_plain', '') === '1') {
+        return;
+    }
+
+    global $wpdb;
+    $table = eh_assessment_report_pdf_template_table_name();
+    $found = (string) $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table));
+    if ($found !== $table) {
+        update_option('eh_assessment_v211_rpt_tpl_diagnosis_name_plain', '1');
+
+        return;
+    }
+
+    $rows = $wpdb->get_results("SELECT id, diagnosis_name FROM {$table}", ARRAY_A);
+    if (!is_array($rows)) {
+        update_option('eh_assessment_v211_rpt_tpl_diagnosis_name_plain', '1');
+
+        return;
+    }
+
+    foreach ($rows as $row) {
+        $id = (int) ($row['id'] ?? 0);
+        $dn = (string) ($row['diagnosis_name'] ?? '');
+        if ($id <= 0) {
+            continue;
+        }
+        $plain = eh_assessment_report_pdf_template_normalize_diagnosis_name_plain($dn);
+        if ($plain !== $dn) {
+            $wpdb->update($table, ['diagnosis_name' => $plain], ['id' => $id], ['%s'], ['%d']);
+        }
+    }
+
+    update_option('eh_assessment_v211_rpt_tpl_diagnosis_name_plain', '1');
+}
+
+/**
  * Remove submission soft-delete: UNIQUE masked_id must stay global; trash rows blocked new IDs.
  */
 function eh_assessment_migrate_v179_drop_submission_deleted_at(): void
@@ -3239,6 +3348,7 @@ function eh_assessment_activate(): void
     eh_assessment_migrate_v203_report_pdf_template_report_header_title();
     eh_assessment_migrate_v204_report_pdf_template_body_medical_notes();
     eh_assessment_migrate_v205_report_pdf_template_diagnosis_name_detail();
+    eh_assessment_migrate_v211_report_pdf_template_diagnosis_name_plain();
     eh_assessment_migrate_v202_report_pdf_template_seed_precon_defaults();
     eh_assessment_migrate_v179_drop_submission_deleted_at();
     eh_assessment_migrate_v180_report_pdf_template_risk_untreated_image();
@@ -3274,6 +3384,7 @@ function eh_assessment_maybe_upgrade(): void
     eh_assessment_migrate_v203_report_pdf_template_report_header_title();
     eh_assessment_migrate_v204_report_pdf_template_body_medical_notes();
     eh_assessment_migrate_v205_report_pdf_template_diagnosis_name_detail();
+    eh_assessment_migrate_v211_report_pdf_template_diagnosis_name_plain();
     eh_assessment_migrate_v202_report_pdf_template_seed_precon_defaults();
     eh_assessment_migrate_v179_drop_submission_deleted_at();
     eh_assessment_migrate_v181_branch_outlet_display_name();
@@ -3464,6 +3575,31 @@ function eh_assessment_normalize_status(string $status): string
 {
     $allowed = ['On Progress', 'Complete', 'Failed'];
     return in_array($status, $allowed, true) ? $status : 'On Progress';
+}
+
+/**
+ * Submissions still On Progress whose submitted calendar day (GMT+7, encoded in submitted_at) is before today → Complete.
+ *
+ * @return int Rows updated (best-effort; may be 0).
+ */
+function eh_assessment_mark_prior_day_on_progress_submissions_complete(): int
+{
+    global $wpdb;
+    $table = eh_assessment_table_name();
+    $today = eh_assessment_daily_overview_today_ymd_gmt7();
+    $now = eh_assessment_current_mysql_time();
+
+    $updated = $wpdb->query(
+        $wpdb->prepare(
+            "UPDATE {$table}
+             SET status = 'Complete', updated_at = %s
+             WHERE status = 'On Progress' AND DATE(submitted_at) < %s",
+            $now,
+            $today
+        )
+    );
+
+    return is_int($updated) ? $updated : 0;
 }
 
 function eh_assessment_mark_stale_submissions_failed(): int
@@ -4277,10 +4413,43 @@ function eh_assessment_enqueue_submissions_admin_scripts(string $hook_suffix): v
     if (!eh_assessment_current_user_can_access_admin()) {
         return;
     }
-
-    // Submissions list: no admin JS (manual “Add submission” flow removed).
 }
 add_action('admin_enqueue_scripts', 'eh_assessment_enqueue_submissions_admin_scripts');
+
+/**
+ * Auto-submit GET filter forms when date range inputs change (submissions, daily overview, hair specialists list).
+ */
+function eh_assessment_enqueue_admin_date_range_auto_submit(string $hook_suffix): void
+{
+    $target = '';
+    if (strpos($hook_suffix, 'eh-assessment-submissions') !== false) {
+        $target = 'submissions';
+    } elseif (strpos($hook_suffix, 'eh-hair-specialist-daily-overview') !== false) {
+        $target = 'daily-overview';
+    } elseif (strpos($hook_suffix, 'eh-hair-specialists') !== false) {
+        $target = 'hair-specialists';
+    }
+    if ($target === '') {
+        return;
+    }
+
+    if ($target === 'hair-specialists') {
+        if (!eh_assessment_user_is_administrator()) {
+            return;
+        }
+    } elseif (!eh_assessment_current_user_can_access_admin()) {
+        return;
+    }
+
+    wp_enqueue_script(
+        'eh-assessment-admin-date-range-auto-submit',
+        plugins_url('assets/admin-date-range-auto-submit.js', __FILE__),
+        [],
+        EH_ASSESSMENT_DATA_VERSION,
+        true
+    );
+}
+add_action('admin_enqueue_scripts', 'eh_assessment_enqueue_admin_date_range_auto_submit', 5);
 
 function eh_assessment_enqueue_branch_outlet_admin_scripts(string $hook_suffix): void
 {
@@ -5353,6 +5522,7 @@ function eh_assessment_handle_admin_actions(): void
         eh_assessment_migrate_v203_report_pdf_template_report_header_title();
         eh_assessment_migrate_v204_report_pdf_template_body_medical_notes();
         eh_assessment_migrate_v205_report_pdf_template_diagnosis_name_detail();
+        eh_assessment_migrate_v211_report_pdf_template_diagnosis_name_plain();
         eh_assessment_migrate_v202_report_pdf_template_seed_precon_defaults();
         eh_assessment_migrate_v181_branch_outlet_display_name();
         eh_assessment_migrate_v210_hair_specialist_daily_overview();
@@ -6603,6 +6773,14 @@ function eh_assessment_render_branch_outlet_page(): void
         $clear_href = $bo_status === 'trash' ? add_query_arg('bo_status', 'trash', $base) : $base;
         echo '<a class="button" href="' . esc_url($clear_href) . '">Clear</a>';
     }
+    $csv_bo_extra = [];
+    if ($bo_status === 'trash') {
+        $csv_bo_extra['bo_status'] = 'trash';
+    }
+    if ($bo_search !== '') {
+        $csv_bo_extra['bo_search'] = $bo_search;
+    }
+    echo ' <a class="button" href="' . esc_url(eh_assessment_admin_export_csv_url('eh-assessment-branch-outlet', $csv_bo_extra)) . '">Export CSV</a>';
     echo '</form>';
     echo '</div>';
 
@@ -6885,6 +7063,14 @@ function eh_assessment_render_hair_specialist_agents_page(): void
     echo '<button type="submit" class="button">Search</button> ';
     $reset_href = $hsa_status === 'trash' ? add_query_arg('hsa_status', 'trash', $base) : $base;
     echo '<a class="button" href="' . esc_url($reset_href) . '">Reset</a>';
+    $csv_hsa_extra = [];
+    if ($hsa_status === 'trash') {
+        $csv_hsa_extra['hsa_status'] = 'trash';
+    }
+    if ($search_term !== '') {
+        $csv_hsa_extra['s'] = $search_term;
+    }
+    echo ' <a class="button" href="' . esc_url(eh_assessment_admin_export_csv_url('eh-hair-specialist-agents', $csv_hsa_extra)) . '">Export CSV</a>';
     echo '</form>';
 
     echo '<table class="widefat striped"><thead><tr>';
@@ -7058,7 +7244,7 @@ function eh_assessment_report_pdf_template_form_sections(): array
         [
             'title' => 'Section diagnosis',
             'fields' => [
-                ['rpt_diagnosis_name', 'Diagnosis name', 'wysiwyg', 'diagnosis_name'],
+                ['rpt_diagnosis_name', 'Diagnosis name', 'textarea', 'diagnosis_name'],
                 ['rpt_diagnosis_name_detail', 'Diagnosis name detail', 'text', 'diagnosis_name_detail'],
             ],
         ],
@@ -7243,7 +7429,7 @@ function eh_assessment_render_report_pdf_templates_page(): void
             echo '<tr>';
             echo '<td><code>' . esc_html((string) ($r['masking_id'] ?? '')) . '</code></td>';
             echo '<td>' . esc_html((string) ($r['report_title'] ?? '')) . '</td>';
-            echo '<td>' . esc_html((string) ($r['diagnosis_name'] ?? '')) . '</td>';
+            echo '<td>' . esc_html(eh_assessment_report_pdf_template_normalize_diagnosis_name_plain((string) ($r['diagnosis_name'] ?? ''))) . '</td>';
             if ($rpt_status === 'trash') {
                 echo '<td>' . esc_html(eh_assessment_format_admin_datetime((string) ($r['deleted_at'] ?? ''))) . '</td>';
                 echo '<td>';
@@ -7317,6 +7503,7 @@ function eh_assessment_render_submissions_page(): void
     $assessment_table = eh_assessment_table_name();
     $branch_table = eh_branch_outlet_table_name();
     $view = sanitize_key((string) ($_GET['view'] ?? 'list'));
+    eh_assessment_mark_prior_day_on_progress_submissions_complete();
     eh_assessment_mark_stale_submissions_failed();
 
     echo '<div class="wrap">';
@@ -7479,7 +7666,11 @@ function eh_assessment_render_submissions_page(): void
                 if ($val === '' && $col !== 'cekat_masking_id') {
                     continue;
                 }
-                echo '<div style="' . esc_attr($meta_item_style) . '"><div style="font-size:12px;color:#667085;margin-bottom:6px;">' . esc_html($lab) . '</div><div style="font-size:15px;font-weight:600;word-break:break-all;">' . esc_html($val !== '' ? $val : '—') . '</div></div>';
+                $display = $val !== '' ? $val : '—';
+                if ($col === 'cekat_created_at' && $val !== '') {
+                    $display = eh_assessment_format_admin_datetime($val);
+                }
+                echo '<div style="' . esc_attr($meta_item_style) . '"><div style="font-size:12px;color:#667085;margin-bottom:6px;">' . esc_html($lab) . '</div><div style="font-size:15px;font-weight:600;word-break:break-all;">' . esc_html($display) . '</div></div>';
             }
             $desc = (string) ($submission['cekat_description'] ?? '');
             if ($desc !== '') {
@@ -7763,7 +7954,22 @@ function eh_assessment_render_submissions_page(): void
     if ($status_filter !== '') {
         $reset_href = add_query_arg('status', rawurlencode($status_filter), $reset_href);
     }
+    $csv_sub_extra = [];
+    if ($status_filter !== '') {
+        $csv_sub_extra['status'] = $status_filter;
+    }
+    if ($search_term !== '') {
+        $csv_sub_extra['s'] = $search_term;
+    }
+    if ($created_from !== '') {
+        $csv_sub_extra['created_from'] = $created_from;
+    }
+    if ($created_to !== '') {
+        $csv_sub_extra['created_to'] = $created_to;
+    }
+    $csv_sub_url = eh_assessment_admin_export_csv_url('eh-assessment-submissions', $csv_sub_extra);
     echo '<button type="submit" class="button">Search</button> <a class="button" href="' . esc_url($reset_href) . '">Reset</a>';
+    echo ' <a class="button" href="' . esc_url($csv_sub_url) . '">Export CSV</a>';
     echo '</form>';
     echo '</div>';
     echo '<table class="widefat striped"><thead><tr>';
@@ -8026,6 +8232,7 @@ function eh_assessment_migrate_role_access_and_user_assignments(): void
     eh_assessment_migrate_v203_report_pdf_template_report_header_title();
     eh_assessment_migrate_v204_report_pdf_template_body_medical_notes();
     eh_assessment_migrate_v205_report_pdf_template_diagnosis_name_detail();
+    eh_assessment_migrate_v211_report_pdf_template_diagnosis_name_plain();
     eh_assessment_migrate_v202_report_pdf_template_seed_precon_defaults();
     eh_assessment_migrate_v181_branch_outlet_display_name();
     eh_assessment_migrate_v190_submission_computed_columns();

@@ -253,16 +253,6 @@ function eh_assessment_render_hair_specialist_daily_overview_page(): void
     $d_from = sanitize_text_field((string) ($_GET['overview_from'] ?? ''));
     $d_to = sanitize_text_field((string) ($_GET['overview_to'] ?? ''));
 
-    if ($d_from === '' && $d_to === '') {
-        $d_to = eh_assessment_daily_overview_today_ymd_gmt7();
-        try {
-            $dt = new DateTimeImmutable($d_to, eh_assessment_gmt7_timezone());
-            $d_from = $dt->modify('-30 days')->format('Y-m-d');
-        } catch (Throwable) {
-            $d_from = $d_to;
-        }
-    }
-
     $where_clauses = ['1=1'];
     $where_values = [];
 
@@ -343,9 +333,8 @@ function eh_assessment_render_hair_specialist_daily_overview_page(): void
 
     echo '<div class="wrap">';
     echo '<h1>Hair Specialist Daily Overview</h1>';
-    echo '<p class="description" style="margin-top:0;">View-only: per-day submission load per Hair Specialist agent. <strong>Round-robin assignment uses only the current calendar day (GMT+7)</strong>—each new day, counts for assignment start from zero until submissions roll in; previous days are not mixed in. Rows appear when the first submission of that day is stored for that agent.</p>';
 
-    echo '<form method="get" action="" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:16px 0;">';
+    echo '<form method="get" action="" style="margin:12px 0 16px;width:100%;box-sizing:border-box;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end;">';
     echo '<input type="hidden" name="page" value="eh-hair-specialist-daily-overview">';
     echo '<label for="eh-hsdo-from" style="font-size:12px;color:#50575e;">Overview date</label>';
     echo '<input id="eh-hsdo-from" type="date" name="overview_from" value="' . esc_attr($d_from) . '">';
@@ -354,6 +343,17 @@ function eh_assessment_render_hair_specialist_daily_overview_page(): void
     echo '<input type="search" name="s" value="' . esc_attr($search_term) . '" class="regular-text" placeholder="Search all columns…">';
     echo '<button type="submit" class="button">Apply</button>';
     echo '<a class="button" href="' . esc_url(admin_url('admin.php?page=eh-hair-specialist-daily-overview')) . '">Reset</a>';
+    $csv_do_extra = [];
+    if ($search_term !== '') {
+        $csv_do_extra['s'] = $search_term;
+    }
+    if ($d_from !== '') {
+        $csv_do_extra['overview_from'] = $d_from;
+    }
+    if ($d_to !== '') {
+        $csv_do_extra['overview_to'] = $d_to;
+    }
+    echo ' <a class="button" href="' . esc_url(eh_assessment_admin_export_csv_url('eh-hair-specialist-daily-overview', $csv_do_extra)) . '">Export CSV</a>';
     echo '</form>';
 
     echo '<table class="widefat striped"><thead><tr>';
@@ -374,7 +374,7 @@ function eh_assessment_render_hair_specialist_daily_overview_page(): void
         foreach ($rows as $row) {
             echo '<tr>';
             echo '<td>' . (int) ($row['id'] ?? 0) . '</td>';
-            echo '<td>' . esc_html((string) ($row['overview_date'] ?? '')) . '</td>';
+            echo '<td>' . esc_html(eh_assessment_format_admin_date((string) ($row['overview_date'] ?? ''))) . '</td>';
             echo '<td>' . esc_html((string) ($row['agent_name'] ?? '')) . '</td>';
             echo '<td><code>' . esc_html((string) ($row['agent_code'] ?? '')) . '</code></td>';
             echo '<td style="word-break:break-all;"><code>' . esc_html((string) ($row['agent_masking_id'] ?? '')) . '</code></td>';
