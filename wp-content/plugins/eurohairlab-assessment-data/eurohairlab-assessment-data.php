@@ -3,7 +3,7 @@
  * Plugin Name: Eurohairlab Assessment Data
  * Description: Stores assessment submissions, branch office links, and related data in custom database tables.
  * Plugin URI: https://qoar.id
- * Version: 1.8.1
+ * Version: 1.8.3
  * Author: Qoar Creative Agency
  * Author URI: https://qoar.id
  */
@@ -22,7 +22,7 @@ require_once __DIR__ . '/eh-assessment-submission-logic.php';
 require_once __DIR__ . '/eh-assessment-cekat-webhook-i18n.php';
 require_once __DIR__ . '/eh-assessment-admin-notification-mail.php';
 
-const EH_ASSESSMENT_DATA_VERSION = '1.8.2';
+const EH_ASSESSMENT_DATA_VERSION = '1.8.3';
 const EH_ASSESSMENT_REPORT_PDF_MASKING_ID_MAX_LENGTH = 64;
 const EH_ASSESSMENT_AGENT_MASKING_ID_MAX_LENGTH = 64;
 const EH_ASSESSMENT_AGENT_CODE_MAX_LENGTH = 64;
@@ -73,6 +73,8 @@ function eh_hair_specialist_agent_table_name(): string
 
     return $wpdb->prefix . 'eh_hair_specialist_agents';
 }
+
+require_once __DIR__ . '/eh-assessment-hair-specialist-daily-overview.php';
 
 function eh_assessment_report_pdf_template_table_name(): string
 {
@@ -3241,6 +3243,7 @@ function eh_assessment_activate(): void
     eh_assessment_migrate_v179_drop_submission_deleted_at();
     eh_assessment_migrate_v180_report_pdf_template_risk_untreated_image();
     eh_assessment_migrate_v181_branch_outlet_display_name();
+    eh_assessment_migrate_v210_hair_specialist_daily_overview();
     eh_assessment_seed_sample_data();
     update_option('eh_assessment_data_version', EH_ASSESSMENT_DATA_VERSION);
 }
@@ -3274,6 +3277,7 @@ function eh_assessment_maybe_upgrade(): void
     eh_assessment_migrate_v202_report_pdf_template_seed_precon_defaults();
     eh_assessment_migrate_v179_drop_submission_deleted_at();
     eh_assessment_migrate_v181_branch_outlet_display_name();
+    eh_assessment_migrate_v210_hair_specialist_daily_overview();
 
     if ($installed_version === EH_ASSESSMENT_DATA_VERSION) {
         return;
@@ -3938,6 +3942,7 @@ function eh_assessment_insert_submission(array $payload)
 
     eh_assessment_migrate_v179_drop_submission_deleted_at();
     eh_assessment_migrate_v181_branch_outlet_display_name();
+    eh_assessment_migrate_v210_hair_specialist_daily_overview();
 
     if (!eh_assessment_public_submission_honeypot_clean($payload)) {
         return new WP_Error('spam_detected', 'Submission rejected.', ['status' => 400]);
@@ -3974,6 +3979,8 @@ function eh_assessment_insert_submission(array $payload)
 
     $sanitized['respondent']['birthdate'] = $birthdate;
     $sanitized['submission']['branch_outlet_masking_id'] = $branch_outlet_masking_id;
+
+    $assignmentMeta = eh_assessment_apply_agent_assignment_for_submission($sanitized);
 
     $agent_mid = (string) ($sanitized['submission']['agent_masking_id'] ?? '');
     $agent_name = $agent_mid !== '' ? eh_assessment_resolve_submission_agent_name_from_input($agent_mid) : null;
@@ -4073,8 +4080,19 @@ function eh_assessment_insert_submission(array $payload)
 
     $newSubmissionId = (int) $wpdb->insert_id;
 
+    if ($assignmentMeta['agent_db_id'] > 0) {
+        eh_assessment_daily_overview_increment((int) $assignmentMeta['agent_db_id'], (string) $assignmentMeta['overview_date']);
+    }
+
     // Notify admin first: must not depend on Cekat webhook (network/errors/filters on webhook must not block email).
     eh_assessment_send_new_lead_admin_notification(
+        (string) $row['masked_id'],
+        $branch_outlet_id,
+        $agent_mid,
+        $sanitized,
+        $newSubmissionId
+    );
+    eh_assessment_send_new_lead_hair_specialist_notification(
         (string) $row['masked_id'],
         $branch_outlet_id,
         $agent_mid,
@@ -4108,6 +4126,16 @@ function eh_assessment_register_rest_routes(): void
     register_rest_route('eurohairlab/v1', '/assessment-submissions', [
         'methods' => WP_REST_Server::CREATABLE,
         'permission_callback' => '__return_true',
+        'args' => [
+            'code' => [
+                'required' => false,
+                'description' => 'Hair Specialist agent public code (?code=); merged into submission.agent_masking_id when body omits it.',
+                'type' => 'string',
+                'sanitize_callback' => static function ($value): string {
+                    return sanitize_text_field((string) $value);
+                },
+            ],
+        ],
         'callback' => function (WP_REST_Request $request) {
             $raw = $request->get_body();
             if (strlen($raw) > EH_ASSESSMENT_MAX_JSON_BODY_BYTES) {
@@ -4117,6 +4145,17 @@ function eh_assessment_register_rest_routes(): void
             $payload = $request->get_json_params();
             if (!is_array($payload)) {
                 return new WP_Error('invalid_payload', 'Invalid JSON payload.', ['status' => 400]);
+            }
+
+            $codeQ = trim((string) $request->get_param('code'));
+            if ($codeQ !== '') {
+                if (!isset($payload['submission']) || !is_array($payload['submission'])) {
+                    $payload['submission'] = [];
+                }
+                $existingAgent = trim((string) ($payload['submission']['agent_masking_id'] ?? ''));
+                if ($existingAgent === '') {
+                    $payload['submission']['agent_masking_id'] = $codeQ;
+                }
             }
 
             return eh_assessment_insert_submission($payload);
@@ -4687,12 +4726,14 @@ function eh_assessment_submission_quick_view_text(array $submission, array $payl
 
     $pdfUrl = $submission_id > 0 ? eh_assessment_get_report_download_url_for_json($submission_id) : '';
 
+    $hsName = trim((string) ($submission['agent_name'] ?? ''));
     $lines = [
         '[NEW LEAD]',
         '',
         '• Nama: ' . $salutation . ' ' . $name,
         '• WhatsApp: ' . $wa,
         '• ID Laporan: ' . $reportId,
+        '• Hair specialist: ' . ($hsName !== '' ? $hsName : '-'),
         '• Profil Klinis: ' . ($condition !== '' ? $condition : '-') . '  |  Skor: ' . $scoreStr . '/100  |  Band: ' . ($band !== '' ? $band : '-'),
         '• Tipe Pasien: ' . $tipeStr . '  |  Strategi: ' . ($strategi !== '' ? $strategi : '-'),
         '• Sumber: ' . $source,
@@ -5314,6 +5355,7 @@ function eh_assessment_handle_admin_actions(): void
         eh_assessment_migrate_v205_report_pdf_template_diagnosis_name_detail();
         eh_assessment_migrate_v202_report_pdf_template_seed_precon_defaults();
         eh_assessment_migrate_v181_branch_outlet_display_name();
+        eh_assessment_migrate_v210_hair_specialist_daily_overview();
         $cekat = eh_assessment_parse_cekat_row_from_post();
         if (is_wp_error($cekat)) {
             wp_safe_redirect(
@@ -5414,6 +5456,8 @@ function eh_assessment_handle_admin_actions(): void
 
         $sanitized['respondent']['birthdate'] = $row_birthdate;
         $sanitized['submission']['branch_outlet_masking_id'] = $row_branch_masking;
+
+        $assignmentMetaManual = eh_assessment_apply_agent_assignment_for_submission($sanitized);
 
         $manual_slug = trim((string) ($sanitized['submission']['source_page_slug'] ?? ''));
         $manual_sp_id = (int) ($sanitized['submission']['source_page_id'] ?? 0);
@@ -5539,6 +5583,9 @@ function eh_assessment_handle_admin_actions(): void
         }
 
         $new_id = (int) $wpdb->insert_id;
+        if ($assignmentMetaManual['agent_db_id'] > 0) {
+            eh_assessment_daily_overview_increment((int) $assignmentMetaManual['agent_db_id'], (string) $assignmentMetaManual['overview_date']);
+        }
         wp_safe_redirect(
             add_query_arg(
                 [
@@ -6414,6 +6461,15 @@ function eh_assessment_register_admin_menu(): void
 
     add_submenu_page(
         'eh-assessment-submissions',
+        'Hair Specialist Daily Overview',
+        'Hair Specialist Daily Overview',
+        EH_ASSESSMENT_ACCESS_CAPABILITY,
+        'eh-hair-specialist-daily-overview',
+        'eh_assessment_render_hair_specialist_daily_overview_page'
+    );
+
+    add_submenu_page(
+        'eh-assessment-submissions',
         'Report PDF templates',
         'Report PDF templates',
         EH_ASSESSMENT_ACCESS_CAPABILITY,
@@ -6804,13 +6860,13 @@ function eh_assessment_render_hair_specialist_agents_page(): void
            FROM {$agent_table} a
            LEFT JOIN {$branch_table} bo ON bo.id = a.branch_outlet_id
            WHERE a.deleted_at IS NOT NULL{$search_sql}
-           ORDER BY a.updated_at DESC";
+           ORDER BY a.id ASC";
     } else {
         $sql = "SELECT a.*, {$hsaBranchLabel} AS branch_outlet_name
            FROM {$agent_table} a
            LEFT JOIN {$branch_table} bo ON bo.id = a.branch_outlet_id AND bo.deleted_at IS NULL
            WHERE a.deleted_at IS NULL{$search_sql}
-           ORDER BY a.id DESC";
+           ORDER BY a.id ASC";
     }
     if ($search_vals !== []) {
         $sql = $wpdb->prepare($sql, ...$search_vals);
@@ -7338,7 +7394,7 @@ function eh_assessment_render_submissions_page(): void
         $branch_display = trim((string) ($submission['branch_outlet_name'] ?? ''));
         echo '<div style="' . esc_attr($meta_item_style) . '"><div style="font-size:12px;color:#667085;margin-bottom:6px;">Branch Office</div><div style="font-size:16px;font-weight:600;">' . esc_html($branch_display !== '' ? $branch_display : '—') . '</div></div>';
         $agent_name_display = trim((string) ($submission['agent_name'] ?? ''));
-        echo '<div style="' . esc_attr($meta_item_style) . ';grid-column:1/-1;"><div style="font-size:12px;color:#667085;margin-bottom:6px;">Agent name</div><div style="font-size:16px;font-weight:600;">' . esc_html($agent_name_display !== '' ? $agent_name_display : '—') . '</div></div>';
+        echo '<div style="' . esc_attr($meta_item_style) . ';grid-column:1/-1;"><div style="font-size:12px;color:#667085;margin-bottom:6px;">Hair specialist</div><div style="font-size:16px;font-weight:600;">' . esc_html($agent_name_display !== '' ? $agent_name_display : '—') . '</div></div>';
         $name_display = trim((string) ($submission['respondent_name'] ?? ''));
         echo '<div style="' . esc_attr($meta_item_style) . '"><div style="font-size:12px;color:#667085;margin-bottom:6px;">Name</div><div style="font-size:16px;font-weight:600;">' . esc_html($name_display !== '' ? $name_display : '—') . '</div></div>';
         echo '<div style="' . esc_attr($meta_item_style) . '"><div style="font-size:12px;color:#667085;margin-bottom:6px;">Gender</div><div style="font-size:16px;font-weight:600;text-transform:capitalize;">' . esc_html((string) $submission['respondent_gender']) . '</div></div>';
@@ -7723,7 +7779,7 @@ function eh_assessment_render_submissions_page(): void
     echo '<th>' . eh_assessment_admin_sort_link($base_args, 'respondent_name', 'Respondent') . '</th>';
     echo '<th>' . eh_assessment_admin_sort_link($base_args, 'respondent_whatsapp', 'WhatsApp') . '</th>';
     echo '<th>' . eh_assessment_admin_sort_link($base_args, 'respondent_gender', 'Gender') . '</th>';
-    echo '<th>' . eh_assessment_admin_sort_link($base_args, 'agent_name', 'Agent') . '</th>';
+    echo '<th>' . eh_assessment_admin_sort_link($base_args, 'agent_name', 'Hair specialist') . '</th>';
     echo '<th>' . eh_assessment_admin_sort_link($base_args, 'status', 'Status') . '</th>';
     echo '<th>' . eh_assessment_admin_sort_link($base_args, 'submitted_at', 'Submitted At') . '</th>';
     echo '<th>Actions</th>';
