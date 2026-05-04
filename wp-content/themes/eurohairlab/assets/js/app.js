@@ -4,6 +4,73 @@ const siteHeader = document.getElementById("site-header");
 const siteHeaderLogo = document.querySelector(".site-header__logo");
 const forceDarkLogo = siteHeader?.dataset.forceDarkLogo === "true";
 
+let ehLangSelectDocumentHooksBound = false;
+
+const bindPublicLangSelectDocumentHooks = () => {
+  if (ehLangSelectDocumentHooksBound) {
+    return;
+  }
+  ehLangSelectDocumentHooksBound = true;
+
+  document.addEventListener("click", (event) => {
+    const t = event.target;
+    if (!(t instanceof Node)) {
+      return;
+    }
+
+    document.querySelectorAll("[data-eh-lang-select].is-open").forEach((root) => {
+      if (!root.contains(t)) {
+        root.classList.remove("is-open");
+        const tr = root.querySelector(".eh-lang-select__trigger");
+        if (tr) {
+          tr.setAttribute("aria-expanded", "false");
+        }
+      }
+    });
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") {
+      return;
+    }
+
+    document.querySelectorAll("[data-eh-lang-select].is-open").forEach((root) => {
+      root.classList.remove("is-open");
+      const tr = root.querySelector(".eh-lang-select__trigger");
+      if (tr) {
+        tr.setAttribute("aria-expanded", "false");
+        tr.focus();
+      }
+    });
+  });
+};
+
+const initPublicLangSelect = () => {
+  bindPublicLangSelectDocumentHooks();
+
+  document.querySelectorAll("[data-eh-lang-select]").forEach((root) => {
+    const trigger = root.querySelector(".eh-lang-select__trigger");
+    const menu = root.querySelector(".eh-lang-select__menu");
+
+    if (!trigger || !menu) {
+      return;
+    }
+
+    trigger.addEventListener("click", () => {
+      const next = !root.classList.contains("is-open");
+      root.classList.toggle("is-open", next);
+      trigger.setAttribute("aria-expanded", String(next));
+    });
+
+    menu.querySelectorAll("a[role='menuitem']").forEach((link) => {
+      link.addEventListener("click", () => {
+        root.classList.remove("is-open");
+        trigger.setAttribute("aria-expanded", "false");
+      });
+    });
+  });
+};
+
 if (menuToggle && mobileMenu) {
   const setMenuState = (isOpen) => {
     menuToggle.setAttribute("aria-expanded", String(isOpen));
@@ -2027,6 +2094,7 @@ const initSmoothScrollAnchors = () => {
 
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", () => {
+    initPublicLangSelect();
     initSmoothScrollAnchors();
     initAboutSliders();
     initAboutPartnership();
@@ -2041,6 +2109,7 @@ if (document.readyState === "loading") {
     initAssessmentWizard();
   }, { once: true });
 } else {
+  initPublicLangSelect();
   initSmoothScrollAnchors();
   initAboutSliders();
   initAboutPartnership();

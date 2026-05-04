@@ -15,13 +15,13 @@ $hero_image = $figma_uri . '/figma-treatment-hero.webp';
 $hero_title = 'HAIR TREATMENT PROGRAM';
 $hero_paragraph_html = '<p>A comprehensive, clinically structured hair and scalp care program built on a diagnose-first approach. Every treatment begins with a detailed scalp analysis to identify root causes before selecting the most precise solution. Combining advanced Korean techniques with the SCALPFIRST™ System, this program delivers targeted care from scalp correction to long-term hair regeneration and maintenance.</p>';
 
-if ($page_id && function_exists('rwmb_meta')) {
-    $hero_image = eurohairlab_mb_image_url(rwmb_meta('eh_treatments_hero_image', [], $page_id), $hero_image);
-    $t = rwmb_meta('eh_treatments_hero_title', [], $page_id);
+if ($page_id && function_exists('eurohairlab_rwmb_page_meta')) {
+    $hero_image = eurohairlab_mb_image_url(eurohairlab_rwmb_page_meta($page_id, 'eh_treatments_hero_image', []), $hero_image);
+    $t = eurohairlab_rwmb_page_meta($page_id, 'eh_treatments_hero_title', []);
     if (is_string($t) && $t !== '') {
         $hero_title = $t;
     }
-    $p = rwmb_meta('eh_treatments_hero_paragraph', [], $page_id);
+    $p = eurohairlab_rwmb_page_meta($page_id, 'eh_treatments_hero_paragraph', []);
     if (is_string($p) && $p !== '') {
         $hero_paragraph_html = $p;
     }
@@ -49,13 +49,15 @@ if ($q->have_posts()) {
         }
         $thumb = get_the_post_thumbnail_url($pid, 'full');
         $img = is_string($thumb) && $thumb !== '' ? $thumb : $figma_uri . '/treatment-program-1.webp';
-        $detail = function_exists('rwmb_meta') ? rwmb_meta('eh_tp_detail_includes', [], $pid) : '';
+        $detail = function_exists('eurohairlab_rwmb_page_meta') ? eurohairlab_rwmb_page_meta($pid, 'eh_tp_detail_includes', []) : '';
         $detail_html = is_string($detail) ? $detail : '';
-        $para = function_exists('rwmb_meta') ? rwmb_meta('eh_tp_paragraph', [], $pid) : '';
+        $para = function_exists('eurohairlab_rwmb_page_meta') ? eurohairlab_rwmb_page_meta($pid, 'eh_tp_paragraph', []) : '';
         $para_html = is_string($para) ? $para : '';
+        $prog_title_raw = function_exists('eurohairlab_rwmb_page_meta') ? eurohairlab_rwmb_page_meta($pid, 'eh_tp_program_title', []) : '';
+        $prog_title = is_string($prog_title_raw) && trim($prog_title_raw) !== '' ? trim($prog_title_raw) : get_the_title();
         $programs[] = [
             'id' => $anchor,
-            'title' => get_the_title(),
+            'title' => $prog_title,
             'image' => $img,
             'copy_html' => $para_html,
             'detail_html' => $detail_html,

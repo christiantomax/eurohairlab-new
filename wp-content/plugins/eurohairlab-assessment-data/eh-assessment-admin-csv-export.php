@@ -331,6 +331,8 @@ function eh_assessment_export_csv_branch_outlets(): void
 
 function eh_assessment_export_csv_hair_specialist_agents(): void
 {
+    eh_assessment_migrate_v212_hair_specialist_agent_exclude_from_round_robin();
+
     global $wpdb;
     $agent_table = eh_hair_specialist_agent_table_name();
     $branch_table = eh_branch_outlet_table_name();
@@ -347,14 +349,14 @@ function eh_assessment_export_csv_hair_specialist_agents(): void
 
     $hsaBranchLabel = eh_assessment_branch_outlet_label_sql('bo');
     if ($hsa_status === 'trash') {
-        $sql = "SELECT a.id, a.masking_id, a.name, a.email, a.agent_code, a.branch_outlet_id, {$hsaBranchLabel} AS branch_outlet_name,
+        $sql = "SELECT a.id, a.masking_id, a.name, a.email, a.agent_code, a.exclude_from_round_robin, a.branch_outlet_id, {$hsaBranchLabel} AS branch_outlet_name,
                 CAST(a.created_at AS CHAR) AS created_at, CAST(a.updated_at AS CHAR) AS updated_at, CAST(a.deleted_at AS CHAR) AS deleted_at
            FROM {$agent_table} a
            LEFT JOIN {$branch_table} bo ON bo.id = a.branch_outlet_id
            WHERE a.deleted_at IS NOT NULL{$search_sql}
            ORDER BY a.id ASC";
     } else {
-        $sql = "SELECT a.id, a.masking_id, a.name, a.email, a.agent_code, a.branch_outlet_id, {$hsaBranchLabel} AS branch_outlet_name,
+        $sql = "SELECT a.id, a.masking_id, a.name, a.email, a.agent_code, a.exclude_from_round_robin, a.branch_outlet_id, {$hsaBranchLabel} AS branch_outlet_name,
                 CAST(a.created_at AS CHAR) AS created_at, CAST(a.updated_at AS CHAR) AS updated_at
            FROM {$agent_table} a
            LEFT JOIN {$branch_table} bo ON bo.id = a.branch_outlet_id AND bo.deleted_at IS NULL
@@ -370,8 +372,8 @@ function eh_assessment_export_csv_hair_specialist_agents(): void
     }
 
     $headers = $hsa_status === 'trash'
-        ? ['ID', 'Masking ID', 'Name', 'Email', 'Agent code', 'Branch outlet ID', 'Branch office', 'Created at', 'Updated at', 'Deleted at']
-        : ['ID', 'Masking ID', 'Name', 'Email', 'Agent code', 'Branch outlet ID', 'Branch office', 'Created at', 'Updated at'];
+        ? ['ID', 'Masking ID', 'Name', 'Email', 'Agent code', 'Exclude from round robin', 'Branch outlet ID', 'Branch office', 'Created at', 'Updated at', 'Deleted at']
+        : ['ID', 'Masking ID', 'Name', 'Email', 'Agent code', 'Exclude from round robin', 'Branch outlet ID', 'Branch office', 'Created at', 'Updated at'];
     $out = [];
     foreach ($rows as $r) {
         if ($hsa_status === 'trash') {
@@ -381,6 +383,7 @@ function eh_assessment_export_csv_hair_specialist_agents(): void
                 (string) ($r['name'] ?? ''),
                 (string) ($r['email'] ?? ''),
                 (string) ($r['agent_code'] ?? ''),
+                !empty($r['exclude_from_round_robin']) ? '1' : '0',
                 (string) (int) ($r['branch_outlet_id'] ?? 0),
                 (string) ($r['branch_outlet_name'] ?? ''),
                 (string) ($r['created_at'] ?? ''),
@@ -394,6 +397,7 @@ function eh_assessment_export_csv_hair_specialist_agents(): void
                 (string) ($r['name'] ?? ''),
                 (string) ($r['email'] ?? ''),
                 (string) ($r['agent_code'] ?? ''),
+                !empty($r['exclude_from_round_robin']) ? '1' : '0',
                 (string) (int) ($r['branch_outlet_id'] ?? 0),
                 (string) ($r['branch_outlet_name'] ?? ''),
                 (string) ($r['created_at'] ?? ''),

@@ -3,7 +3,7 @@
  * Plugin Name: Eurohairlab Assessment Data
  * Description: Stores assessment submissions, branch office links, and related data in custom database tables.
  * Plugin URI: https://qoar.id
- * Version: 1.8.3
+ * Version: 1.8.4
  * Author: Qoar Creative Agency
  * Author URI: https://qoar.id
  */
@@ -22,7 +22,7 @@ require_once __DIR__ . '/eh-assessment-submission-logic.php';
 require_once __DIR__ . '/eh-assessment-cekat-webhook-i18n.php';
 require_once __DIR__ . '/eh-assessment-admin-notification-mail.php';
 
-const EH_ASSESSMENT_DATA_VERSION = '1.8.3';
+const EH_ASSESSMENT_DATA_VERSION = '1.8.4';
 const EH_ASSESSMENT_REPORT_PDF_MASKING_ID_MAX_LENGTH = 64;
 const EH_ASSESSMENT_AGENT_MASKING_ID_MAX_LENGTH = 64;
 const EH_ASSESSMENT_AGENT_CODE_MAX_LENGTH = 64;
@@ -2402,12 +2402,14 @@ function eh_assessment_create_tables(): void
         email VARCHAR(191) NOT NULL DEFAULT '',
         branch_outlet_id BIGINT UNSIGNED NOT NULL,
         agent_code VARCHAR(64) NOT NULL,
+        exclude_from_round_robin TINYINT(1) NOT NULL DEFAULT 0,
         deleted_at DATETIME NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         PRIMARY KEY (id),
         KEY masking_id (masking_id),
         KEY agent_code (agent_code),
+        KEY exclude_from_round_robin (exclude_from_round_robin),
         KEY branch_outlet_id (branch_outlet_id),
         KEY deleted_at (deleted_at)
     ) {$charset_collate};";
@@ -5994,6 +5996,7 @@ function eh_assessment_handle_admin_actions(): void
         $email = sanitize_email((string) ($_POST['agent_email'] ?? ''));
         $branch_outlet_id = isset($_POST['branch_outlet_id']) ? (int) $_POST['branch_outlet_id'] : 0;
         $agent_code_raw = isset($_POST['agent_code']) ? trim(wp_unslash((string) $_POST['agent_code'])) : '';
+        $exclude_from_round_robin = !empty($_POST['exclude_from_round_robin']) ? 1 : 0;
 
         $redirect_err = static function (string $code) use ($row_id): void {
             $args = [
@@ -6055,10 +6058,11 @@ function eh_assessment_handle_admin_actions(): void
                     'email' => $email,
                     'branch_outlet_id' => $branch_outlet_id,
                     'agent_code' => $agent_code,
+                    'exclude_from_round_robin' => $exclude_from_round_robin,
                     'updated_at' => $now,
                 ],
                 ['id' => $row_id],
-                ['%s', '%s', '%d', '%s', '%s'],
+                ['%s', '%s', '%d', '%s', '%d', '%s'],
                 ['%d']
             );
         } else {
@@ -6070,11 +6074,12 @@ function eh_assessment_handle_admin_actions(): void
                     'email' => $email,
                     'branch_outlet_id' => $branch_outlet_id,
                     'agent_code' => $agent_code,
+                    'exclude_from_round_robin' => $exclude_from_round_robin,
                     'deleted_at' => null,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ],
-                ['%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s']
+                ['%s', '%s', '%s', '%d', '%s', '%d', '%s', '%s', '%s']
             );
             $row_id = (int) $wpdb->insert_id;
         }
@@ -6974,6 +6979,8 @@ function eh_assessment_render_hair_specialist_agents_page(): void
         wp_die('You do not have permission to access this page.');
     }
 
+    eh_assessment_migrate_v212_hair_specialist_agent_exclude_from_round_robin();
+
     global $wpdb;
     $agent_table = eh_hair_specialist_agent_table_name();
     $branch_table = eh_branch_outlet_table_name();
@@ -7074,11 +7081,11 @@ function eh_assessment_render_hair_specialist_agents_page(): void
     echo '</form>';
 
     echo '<table class="widefat striped"><thead><tr>';
-    echo '<th>ID</th><th>Name</th><th>Email</th><th>Branch Office</th><th>Agent Code</th><th>Updated</th><th>Actions</th>';
+    echo '<th>ID</th><th>Name</th><th>Email</th><th>Branch Office</th><th>Agent Code</th><th>Round-robin</th><th>Updated</th><th>Actions</th>';
     echo '</tr></thead><tbody>';
 
     if ($rows === []) {
-        echo '<tr><td colspan="7">' . esc_html($search_term !== '' ? 'No agents match your search.' : 'No records yet.') . '</td></tr>';
+        echo '<tr><td colspan="8">' . esc_html($search_term !== '' ? 'No agents match your search.' : 'No records yet.') . '</td></tr>';
     } else {
         foreach ($rows as $row) {
             $id = (int) ($row['id'] ?? 0);
@@ -7093,6 +7100,8 @@ function eh_assessment_render_hair_specialist_agents_page(): void
             echo '<td>' . esc_html((string) ($row['email'] ?? '')) . '</td>';
             echo '<td>' . esc_html((string) ($row['branch_outlet_name'] ?? '')) . '</td>';
             echo '<td><code>' . esc_html($agent_code) . '</code></td>';
+            $exRr = !empty($row['exclude_from_round_robin']);
+            echo '<td>' . ($exRr ? esc_html('Excluded') : esc_html('Active')) . '</td>';
             echo '<td>' . esc_html(eh_assessment_format_admin_datetime((string) ($row['updated_at'] ?? ''))) . '</td>';
             echo '<td>';
             if ($hsa_status === 'trash') {
@@ -7161,6 +7170,9 @@ function eh_assessment_render_hair_specialist_agents_page(): void
     echo '</select></td></tr>';
     echo '<tr><th scope="row"><label for="eh-hsa-add-agent-code">Agent Code</label></th><td><input class="regular-text" type="text" name="agent_code" id="eh-hsa-add-agent-code" required maxlength="64" pattern="[A-Za-z0-9_-]+" autocomplete="off" title="Letters, numbers, underscore, and hyphen only. No spaces.">';
     echo '<p class="description">Letters, numbers, underscore, and hyphen only—no spaces or other special characters. Used as the <code>code</code> query parameter on the public assessment page (must stay URL-safe).</p></td></tr>';
+    echo '<tr><th scope="row">Round-robin assignment</th><td><label><input type="checkbox" name="exclude_from_round_robin" id="eh-hsa-add-exclude-rr" value="1"> ';
+    echo esc_html('Exclude from round robin (never auto-assign to public submissions without an agent link)') . '</label>';
+    echo '<p class="description">When checked, this agent is not chosen for automatic daily round-robin. Assessment links that include <code>?code=</code> or <code>agent_masking_id</code> still attribute submissions to this agent.</p></td></tr>';
     echo '</tbody></table>';
     submit_button('Save Hair Specialist Agent');
     echo '</form>';
@@ -7194,6 +7206,9 @@ function eh_assessment_render_hair_specialist_agents_page(): void
     echo '</select></td></tr>';
     echo '<tr><th scope="row"><label for="eh-hsa-edit-agent-code">Agent Code</label></th><td><input class="regular-text" type="text" name="agent_code" id="eh-hsa-edit-agent-code" required maxlength="64" pattern="[A-Za-z0-9_-]+" autocomplete="off" title="Letters, numbers, underscore, and hyphen only. No spaces.">';
     echo '<p class="description">Same rules as when adding: URL-safe for the assessment <code>?code=</code> link—no spaces or special characters.</p></td></tr>';
+    echo '<tr><th scope="row">Round-robin assignment</th><td><label><input type="checkbox" name="exclude_from_round_robin" id="eh-hsa-edit-exclude-rr" value="1"> ';
+    echo esc_html('Exclude from round robin (never auto-assign to public submissions without an agent link)') . '</label>';
+    echo '<p class="description">When checked, this agent is not chosen for automatic daily round-robin. Direct agent assessment links still work.</p></td></tr>';
     echo '</tbody></table>';
     submit_button('Update Hair Specialist Agent');
     echo '</form>';

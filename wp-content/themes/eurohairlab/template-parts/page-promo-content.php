@@ -8,11 +8,11 @@ declare(strict_types=1);
 
 $page_id = get_queried_object_id();
 $mb_get = static function (string $key) use ($page_id) {
-    if (!$page_id || !function_exists('rwmb_meta')) {
+    if (!$page_id || !function_exists('eurohairlab_rwmb_page_meta')) {
         return null;
     }
 
-    return rwmb_meta($key, [], $page_id);
+    return eurohairlab_rwmb_page_meta($page_id, $key, []);
 };
 $resolve_image = static function ($value, string $fallback = ''): string {
     if (is_string($value) && $value !== '') {
@@ -66,13 +66,13 @@ if ($pq->have_posts()) {
         $pid = get_the_ID();
         $thumb = get_the_post_thumbnail_url($pid, 'full');
         $img = is_string($thumb) && $thumb !== '' ? $thumb : '';
-        $desc = function_exists('rwmb_meta') ? rwmb_meta('eh_promo_item_description', [], $pid) : '';
+        $desc = function_exists('eurohairlab_rwmb_page_meta') ? eurohairlab_rwmb_page_meta($pid, 'eh_promo_item_description', []) : '';
         $desc_html = is_string($desc) ? $desc : '';
-        $btn_label = function_exists('rwmb_meta') ? rwmb_meta('eh_promo_item_button_label', [], $pid) : '';
+        $btn_label = function_exists('eurohairlab_rwmb_page_meta') ? eurohairlab_rwmb_page_meta($pid, 'eh_promo_item_button_label', []) : '';
         if (!is_string($btn_label) || trim($btn_label) === '') {
             $btn_label = 'View More';
         }
-        $btn_href_raw = function_exists('rwmb_meta') ? rwmb_meta('eh_promo_item_button_href', [], $pid) : '';
+        $btn_href_raw = function_exists('eurohairlab_rwmb_page_meta') ? eurohairlab_rwmb_page_meta($pid, 'eh_promo_item_button_href', []) : '';
         $btn_href_raw = is_string($btn_href_raw) ? trim($btn_href_raw) : '';
         $btn_url = $btn_href_raw !== '' ? eurohairlab_resolve_marketing_href($btn_href_raw, '') : eurohairlab_get_primary_cta_url();
 

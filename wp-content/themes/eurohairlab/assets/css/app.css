@@ -146,7 +146,52 @@ body::-webkit-scrollbar {
 }
 
 .site-header.is-scrolled .site-header__logo {
-  height: 3rem;
+  height: 2.25rem;
+}
+
+/**
+ * Tablet md–lg (768–1023px): tighter horizontal gutters (all orientations).
+ */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .sm\:px-5 {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .sm\:px-6 {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .md\:px-8 {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .sm\:mx-5 {
+    margin-left: 0.75rem;
+    margin-right: 0.75rem;
+  }
+}
+
+/**
+ * Tablet landscape only: smaller navbar logo (portrait keeps Tailwind h-9 / scroll rules).
+ */
+@media (min-width: 768px) and (max-width: 1023px) and (orientation: landscape) {
+  .site-header .site-header__logo {
+    height: 1.75rem;
+    width: auto;
+  }
+
+  .site-header.is-scrolled .site-header__logo {
+    height: 1.75rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .site-header.is-scrolled .site-header__logo {
+    height: 3rem;
+  }
 }
 
 .site-header.is-scrolled .site-header__cta {
@@ -184,6 +229,109 @@ footer a.site-header__cta:hover {
 .site-header.is-menu-open .site-header__inner,
 .site-header.is-menu-open .site-header__toggle {
   color: var(--ink);
+}
+
+/* --------------------------------------------------------------------------
+   Header language — custom select (text + chevron only; no boxed trigger)
+   -------------------------------------------------------------------------- */
+.eh-lang-select {
+  position: relative;
+  margin: 0;
+}
+
+@media (min-width: 1024px) {
+  .eh-lang-select {
+    margin: 1.5rem;
+  }
+}
+
+.eh-lang-select__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0.15rem 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.eh-lang-select__trigger:focus {
+  outline: none;
+}
+
+.eh-lang-select__trigger:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.eh-lang-select__value {
+  font-weight: 600;
+}
+
+.eh-lang-select__chevron {
+  display: inline-flex;
+  flex-shrink: 0;
+  opacity: 0.85;
+  transition: transform 0.2s ease;
+}
+
+.eh-lang-select.is-open .eh-lang-select__chevron {
+  transform: rotate(180deg);
+}
+
+.eh-lang-select__menu {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.35rem);
+  z-index: 70;
+  min-width: 11rem;
+  padding: 0.35rem 0;
+  margin: 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid rgba(32, 28, 32, 0.12);
+  box-shadow: 0 12px 40px rgba(32, 28, 32, 0.12);
+  border-radius: 2px;
+}
+
+.eh-lang-select.is-open .eh-lang-select__menu {
+  display: block;
+}
+
+.eh-lang-select__option {
+  display: block;
+  padding: 0.55rem 1rem;
+  font-size: 0.8125rem;
+  line-height: 1.25;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.eh-lang-select__option:hover,
+.eh-lang-select__option:focus-visible {
+  background: rgba(32, 28, 32, 0.06);
+  outline: none;
+}
+
+.eh-lang-select__option.is-active {
+  font-weight: 600;
+  background: rgba(32, 28, 32, 0.08);
 }
 
 .site-header.is-menu-open .site-header__logo {

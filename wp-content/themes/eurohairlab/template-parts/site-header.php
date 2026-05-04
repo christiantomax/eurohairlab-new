@@ -43,7 +43,7 @@ if ($is_marketing_header) {
 }
 ?>
 <header id="site-header" data-force-dark-logo="<?php echo $is_homepage ? 'false' : 'true'; ?>" class="site-header fixed inset-x-0 top-0 z-50 border-b <?php echo esc_attr($header_bg_class); ?>">
-  <div class="site-header__inner relative z-10 flex w-full items-center justify-between gap-4 px-4 py-5 <?php echo esc_attr($header_text_class); ?> sm:gap-6 sm:px-5 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center lg:px-20 lg:py-6">
+  <div class="site-header__inner relative z-10 flex w-full items-center justify-between gap-3 px-4 py-5 <?php echo esc_attr($header_text_class); ?> sm:gap-4 sm:px-5 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center lg:gap-4 lg:px-20 lg:py-6">
     <nav aria-label="Primary" class="hidden lg:block lg:justify-self-start">
       <ul class="uppercase flex items-center gap-8 text-sm <?php echo esc_attr($nav_list_class); ?>">
         <?php foreach (array_slice($nav_items, 0, 4) as $item) : ?>
@@ -56,7 +56,7 @@ if ($is_marketing_header) {
       <img
         src="<?php echo $theme_uri; ?>/assets/images/logo.webp"
         alt="Eurohairlab"
-        class="site-header__logo h-10 w-auto <?php echo esc_attr($logo_filter_class); ?> lg:h-14"
+        class="site-header__logo h-9 w-auto <?php echo esc_attr($logo_filter_class); ?> lg:h-14"
         width="293"
         height="57"
         fetchpriority="high"
@@ -64,29 +64,31 @@ if ($is_marketing_header) {
       >
     </a>
 
-    <div class="hidden lg:block lg:justify-self-end">
-      <a
-        href="<?php echo esc_url($free_scalp_analysis_url); ?>"
-        class="uppercase site-header__cta inline-flex min-h-4 items-center justify-center border px-5 py-2 text-sm transition <?php echo esc_attr($cta_class); ?>"
-        <?php echo $free_scalp_analysis_link_attrs; ?>
+    <div class="flex shrink-0 items-center gap-3 lg:justify-self-end lg:gap-4">
+      <?php get_template_part('template-parts/site-header', 'lang'); ?>
+      <div class="hidden lg:block">
+        <a
+          href="<?php echo esc_url($free_scalp_analysis_url); ?>"
+          class="uppercase site-header__cta inline-flex min-h-4 items-center justify-center border px-5 py-2 text-sm transition <?php echo esc_attr($cta_class); ?>"
+          <?php echo $free_scalp_analysis_link_attrs; ?>
+        >
+          Start Online Hair Assessment
+        </a>
+      </div>
+      <button
+        id="menu-toggle"
+        class="site-header__toggle inline-flex h-11 w-11 items-center justify-center lg:hidden <?php echo esc_attr($toggle_class); ?>"
+        aria-expanded="false"
+        aria-controls="mobile-menu"
       >
-        Start Online Hair Assessment
-      </a>
+        <span class="sr-only">Toggle menu</span>
+        <span class="site-header__toggle-lines" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+      </button>
     </div>
-
-    <button
-      id="menu-toggle"
-      class="site-header__toggle inline-flex h-11 w-11 items-center justify-center lg:hidden <?php echo esc_attr($toggle_class); ?>"
-      aria-expanded="false"
-      aria-controls="mobile-menu"
-    >
-      <span class="sr-only">Toggle menu</span>
-      <span class="site-header__toggle-lines" aria-hidden="true">
-        <span></span>
-        <span></span>
-        <span></span>
-      </span>
-    </button>
   </div>
 
   <nav

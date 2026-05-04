@@ -12,11 +12,11 @@ declare(strict_types=1);
 
 $page_id = (int) get_queried_object_id();
 $mb_get = static function (string $key) use ($page_id) {
-    if (!$page_id || !function_exists('rwmb_meta')) {
+    if (!$page_id || !function_exists('eurohairlab_rwmb_page_meta')) {
         return null;
     }
 
-    return rwmb_meta($key, [], $page_id);
+    return eurohairlab_rwmb_page_meta($page_id, $key, []);
 };
 $blog_list_url = get_permalink($page_id);
 $raw_title = $mb_get('eh_blog_list_page_title');
@@ -40,8 +40,11 @@ $category_filters = [];
 if (!is_wp_error($blog_categories) && $blog_categories !== []) {
     $category_filters[] = ['label' => __('All', 'eurohairlab'), 'slug' => 'all'];
     foreach ($blog_categories as $term) {
+        if (!$term instanceof WP_Term) {
+            continue;
+        }
         $category_filters[] = [
-            'label' => $term->name,
+            'label' => function_exists('eurohairlab_get_category_display_name') ? eurohairlab_get_category_display_name($term) : $term->name,
             'slug' => $term->slug,
         ];
     }

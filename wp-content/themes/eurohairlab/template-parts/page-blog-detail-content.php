@@ -16,8 +16,12 @@ $categories = get_the_category($pid);
 $category_names = [];
 if (is_array($categories)) {
     foreach ($categories as $cat) {
-        if (isset($cat->name) && is_string($cat->name) && $cat->name !== '') {
-            $category_names[] = $cat->name;
+        if (!$cat instanceof WP_Term) {
+            continue;
+        }
+        $label = function_exists('eurohairlab_get_category_display_name') ? eurohairlab_get_category_display_name($cat) : (string) $cat->name;
+        if ($label !== '') {
+            $category_names[] = $label;
         }
     }
 }

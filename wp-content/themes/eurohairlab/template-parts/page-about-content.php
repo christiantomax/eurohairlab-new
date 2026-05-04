@@ -6,11 +6,11 @@ $theme_uri = esc_url(get_template_directory_uri());
 $figma_uri = $theme_uri . '/assets/images/figma';
 $page_id = get_queried_object_id();
 $mb_get = static function (string $key) use ($page_id) {
-    if (!$page_id || !function_exists('rwmb_meta')) {
+    if (!$page_id || !function_exists('eurohairlab_rwmb_page_meta')) {
         return null;
     }
 
-    return rwmb_meta($key, [], $page_id);
+    return eurohairlab_rwmb_page_meta($page_id, $key, []);
 };
 $resolve_image = static function ($value, string $fallback = ''): string {
     if (is_string($value) && $value !== '') {

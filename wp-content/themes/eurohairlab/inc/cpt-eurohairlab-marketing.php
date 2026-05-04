@@ -102,6 +102,12 @@ function eurohairlab_marketing_cpts_register_meta_boxes(array $meta_boxes): arra
         'priority' => 'high',
         'fields' => [
             [
+                'type' => 'text',
+                'name' => esc_html__('Program title', 'eurohairlab'),
+                'id' => 'eh_tp_program_title',
+                'desc' => esc_html__('Heading on the treatments page. Leave empty to use the post title.', 'eurohairlab'),
+            ],
+            [
                 'type' => 'wysiwyg',
                 'name' => esc_html__('Paragraph', 'eurohairlab'),
                 'id' => 'eh_tp_paragraph',

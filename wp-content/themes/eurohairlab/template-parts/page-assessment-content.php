@@ -18,11 +18,11 @@ if ($page_id > 0) {
     }
 }
 $mb_get = static function (string $key) use ($page_id) {
-    if (!$page_id || !function_exists('rwmb_meta')) {
+    if (!$page_id || !function_exists('eurohairlab_rwmb_page_meta')) {
         return null;
     }
 
-    return rwmb_meta($key, [], $page_id);
+    return eurohairlab_rwmb_page_meta($page_id, $key, []);
 };
 $resolve_link = static function ($value, string $fallback = ''): string {
     $value = is_string($value) ? trim($value) : '';
@@ -88,8 +88,8 @@ $normalize_rwmb_image_meta = static function ($raw) {
 
 /** Metabox “Assessment Landing Background Image” (`eh_assessment_landing_background_image`) — used for landing CSS bg and wizard sidebar. */
 $landing_background_meta_raw = null;
-if ($page_id && function_exists('rwmb_meta')) {
-    $landing_background_meta_raw = rwmb_meta('eh_assessment_landing_background_image', ['size' => 'full'], $page_id);
+if ($page_id && function_exists('eurohairlab_rwmb_page_meta')) {
+    $landing_background_meta_raw = eurohairlab_rwmb_page_meta($page_id, 'eh_assessment_landing_background_image', ['size' => 'full']);
 }
 if (
     $landing_background_meta_raw === null

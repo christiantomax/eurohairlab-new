@@ -47,6 +47,13 @@
     }
   }
 
+  function setChecked(id, on) {
+    var n = el(id);
+    if (n && n.type === 'checkbox') {
+      n.checked = !!on;
+    }
+  }
+
   function showModal(node) {
     if (node) {
       node.style.display = 'flex';
@@ -251,6 +258,7 @@
         fillAddFromSelect();
         setVal('eh-hsa-add-branch', '');
         setVal('eh-hsa-add-agent-code', '');
+        setChecked('eh-hsa-add-exclude-rr', false);
         showModal(modalAdd);
       });
     }
@@ -296,6 +304,11 @@
         setVal('eh-hsa-edit-agent-email', row.email || '');
         setVal('eh-hsa-edit-branch', row.branch_outlet_id ? String(row.branch_outlet_id) : '');
         setVal('eh-hsa-edit-agent-code', row.agent_code || '');
+        var ex = row.exclude_from_round_robin;
+        setChecked(
+          'eh-hsa-edit-exclude-rr',
+          ex === 1 || ex === '1' || ex === true
+        );
         clearHsaFormError('edit');
         showModal(modalEdit);
       });

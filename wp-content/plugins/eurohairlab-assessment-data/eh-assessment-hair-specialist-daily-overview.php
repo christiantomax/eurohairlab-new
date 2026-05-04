@@ -14,6 +14,31 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+/**
+ * Add `exclude_from_round_robin` to hair specialist agents (agents with flag=1 are never auto-assigned).
+ */
+function eh_assessment_migrate_v212_hair_specialist_agent_exclude_from_round_robin(): void
+{
+    if ((string) get_option('eh_assessment_v212_hsa_exclude_from_round_robin', '') === '1') {
+        return;
+    }
+
+    global $wpdb;
+    $table = eh_hair_specialist_agent_table_name();
+    $found = (string) $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table));
+    if ($found !== $table) {
+        return;
+    }
+
+    $rows = $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM `{$table}` LIKE %s", 'exclude_from_round_robin'), ARRAY_A);
+    if (!is_array($rows) || $rows === []) {
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from trusted prefix helper
+        $wpdb->query("ALTER TABLE `{$table}` ADD COLUMN exclude_from_round_robin TINYINT(1) NOT NULL DEFAULT 0 AFTER agent_code");
+    }
+
+    update_option('eh_assessment_v212_hsa_exclude_from_round_robin', '1');
+}
+
 function eh_hair_specialist_daily_overview_table_name(): string
 {
     global $wpdb;
@@ -26,6 +51,8 @@ function eh_hair_specialist_daily_overview_table_name(): string
  */
 function eh_assessment_migrate_v210_hair_specialist_daily_overview(): void
 {
+    eh_assessment_migrate_v212_hair_specialist_agent_exclude_from_round_robin();
+
     if ((string) get_option('eh_assessment_v210_hair_specialist_daily_overview', '') === '1') {
         return;
     }
@@ -70,7 +97,8 @@ function eh_assessment_daily_overview_today_ymd_gmt7(): string
 }
 
 /**
- * Active Hair Specialist agents in stable round-robin order (lowest id first).
+ * Active Hair Specialist agents eligible for round-robin, in stable order (lowest id first).
+ * Agents with `exclude_from_round_robin = 1` are omitted.
  *
  * @return list<array<string, mixed>>
  */
@@ -79,7 +107,7 @@ function eh_assessment_daily_overview_list_active_agents_ordered(): array
     global $wpdb;
     $agent_table = eh_hair_specialist_agent_table_name();
     $rows = $wpdb->get_results(
-        "SELECT id, masking_id, name, email, agent_code, branch_outlet_id FROM {$agent_table} WHERE deleted_at IS NULL ORDER BY id ASC",
+        "SELECT id, masking_id, name, email, agent_code, branch_outlet_id FROM {$agent_table} WHERE deleted_at IS NULL AND exclude_from_round_robin = 0 ORDER BY id ASC",
         ARRAY_A
     );
 

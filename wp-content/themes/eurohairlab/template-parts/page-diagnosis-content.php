@@ -15,11 +15,11 @@ $intro_fallback = $figma_uri . '/diagnosis-intro.png';
 $page_id = get_queried_object_id();
 
 $dx_meta = static function (string $key) use ($page_id) {
-    if (!$page_id || !function_exists('rwmb_meta')) {
+    if (!$page_id || !function_exists('eurohairlab_rwmb_page_meta')) {
         return null;
     }
 
-    return rwmb_meta($key, [], $page_id);
+    return eurohairlab_rwmb_page_meta($page_id, $key, []);
 };
 
 $dx_str = static function (string $key, string $default = '') use ($dx_meta): string {
@@ -355,8 +355,8 @@ if ($free_scalp_paragraph_html === '') {
 $free_scalp_button_label = $dx_str('eh_diagnosis_free_scalp_button_label', esc_html__('Start Your Free Scalp Analysis', 'eurohairlab'));
 
 $diagnosis_bottom_cta_href_raw = '';
-if ($page_id && function_exists('rwmb_meta')) {
-    $diagnosis_bottom_cta_href_raw = (string) rwmb_meta('eh_diagnosis_bottom_cta_button_href', [], $page_id);
+if ($page_id && function_exists('eurohairlab_rwmb_page_meta')) {
+    $diagnosis_bottom_cta_href_raw = (string) eurohairlab_rwmb_page_meta($page_id, 'eh_diagnosis_bottom_cta_button_href', []);
 }
 $free_scalp_href_raw = $dx_str('eh_diagnosis_free_scalp_button_href', '');
 if (trim($free_scalp_href_raw) === '') {

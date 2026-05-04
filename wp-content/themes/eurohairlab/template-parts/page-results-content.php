@@ -15,19 +15,29 @@ $hero_image = $figma_uri . '/figma-results-hero.webp';
 $hero_title = '3 Million Cases Worldwide';
 $hero_paragraph_html = '<p>EUROHAIRLAB by DR. SCALP has helped over 3 million people around the world take control of their hair health. With our ScalpFirst™ philosophy and diagnosis-first approach, every treatment is tailored to optimize your scalp environment and deliver results that last. Experience the care and expertise trusted by millions.</p>';
 
-if ($page_id && function_exists('rwmb_meta')) {
-    $hero_image = eurohairlab_mb_image_url(rwmb_meta('eh_results_hero_image', [], $page_id), $hero_image);
-    $t = rwmb_meta('eh_results_hero_title', [], $page_id);
+if ($page_id && function_exists('eurohairlab_rwmb_page_meta')) {
+    $hero_image = eurohairlab_mb_image_url(eurohairlab_rwmb_page_meta($page_id, 'eh_results_hero_image', []), $hero_image);
+    $t = eurohairlab_rwmb_page_meta($page_id, 'eh_results_hero_title', []);
     if (is_string($t) && $t !== '') {
         $hero_title = $t;
     }
-    $p = rwmb_meta('eh_results_hero_paragraph', [], $page_id);
+    $p = eurohairlab_rwmb_page_meta($page_id, 'eh_results_hero_paragraph', []);
     if (is_string($p) && $p !== '') {
         $hero_paragraph_html = $p;
     }
 }
 
 $result_cards = [];
+$eh_result_card_string = static function (mixed $v): string {
+    if (is_string($v)) {
+        return $v;
+    }
+    if (is_int($v) || is_float($v) || $v instanceof \Stringable) {
+        return (string) $v;
+    }
+
+    return '';
+};
 $q = new WP_Query(
     [
         'post_type' => 'eh_result',
@@ -64,43 +74,49 @@ if ($q->have_posts()) {
         }
         $before = $urls[0] ?? ($figma_uri . '/results-1-before.webp');
         $after = isset($urls[1]) ? $urls[1] : $before;
-        $card_title = function_exists('rwmb_meta') ? rwmb_meta('eh_result_card_title', [], $pid) : '';
+        $mb = static function (string $key) use ($pid): mixed {
+            return function_exists('eurohairlab_rwmb_page_meta') ? eurohairlab_rwmb_page_meta($pid, $key, []) : null;
+        };
+        $card_title = $mb('eh_result_card_title');
         if (!is_string($card_title) || trim($card_title) === '') {
-            $legacy_meta_line = function_exists('rwmb_meta') ? rwmb_meta('eh_result_meta_line', [], $pid) : '';
-            $card_title = is_string($legacy_meta_line) && trim($legacy_meta_line) !== '' ? $legacy_meta_line : get_the_title();
+            $legacy_meta_line = $mb('eh_result_meta_line');
+            $fallback_title = get_the_title();
+            $card_title = is_string($legacy_meta_line) && trim($legacy_meta_line) !== ''
+                ? $legacy_meta_line
+                : (is_string($fallback_title) ? $fallback_title : '');
         }
-        $short_description = function_exists('rwmb_meta') ? rwmb_meta('eh_result_short_description', [], $pid) : '';
+        $short_description = $mb('eh_result_short_description');
         if (!is_string($short_description) || trim($short_description) === '') {
-            $legacy_subtitle = function_exists('rwmb_meta') ? rwmb_meta('eh_result_subtitle', [], $pid) : '';
+            $legacy_subtitle = $mb('eh_result_subtitle');
             $short_description = is_string($legacy_subtitle) ? trim($legacy_subtitle) : '';
         }
-        $testimonial = function_exists('rwmb_meta') ? rwmb_meta('eh_result_testimonial', [], $pid) : '';
+        $testimonial = $mb('eh_result_testimonial');
         if (!is_string($testimonial) || trim($testimonial) === '') {
-            $legacy_paragraph = function_exists('rwmb_meta') ? rwmb_meta('eh_result_paragraph', [], $pid) : '';
+            $legacy_paragraph = $mb('eh_result_paragraph');
             $testimonial = is_string($legacy_paragraph) ? wp_strip_all_tags($legacy_paragraph) : '';
         }
-        $subtitle = function_exists('rwmb_meta') ? rwmb_meta('eh_result_subtitle', [], $pid) : '';
+        $subtitle = $mb('eh_result_subtitle');
         if (!is_string($subtitle) || trim($subtitle) === '') {
             $legacy_category = function_exists('rwmb_meta') ? rwmb_meta('eh_result_category', [], $pid) : '';
             $subtitle = is_string($legacy_category) && trim($legacy_category) !== '' ? $legacy_category : 'Case Studies';
         }
-        $sub_description = function_exists('rwmb_meta') ? rwmb_meta('eh_result_sub_description', [], $pid) : '';
+        $sub_description = $mb('eh_result_sub_description');
         if (!is_string($sub_description) || trim($sub_description) === '') {
-            $legacy_paragraph_sub = function_exists('rwmb_meta') ? rwmb_meta('eh_result_paragraph_subtitle', [], $pid) : '';
+            $legacy_paragraph_sub = $mb('eh_result_paragraph_subtitle');
             $sub_description = is_string($legacy_paragraph_sub) ? wp_strip_all_tags($legacy_paragraph_sub) : '';
         }
 
         $gallery_urls = $urls !== [] ? $urls : [$before, $after];
 
         $result_cards[] = [
-            'before' => $before,
-            'after' => $after,
+            'before' => is_string($before) ? $before : '',
+            'after' => is_string($after) ? $after : '',
             'gallery' => $gallery_urls,
-            'card_title' => $card_title,
-            'short_description' => $short_description,
-            'testimonial' => trim($testimonial),
-            'subtitle' => $subtitle,
-            'sub_description' => trim($sub_description),
+            'card_title' => $eh_result_card_string($card_title),
+            'short_description' => $eh_result_card_string($short_description),
+            'testimonial' => trim($eh_result_card_string($testimonial)),
+            'subtitle' => $eh_result_card_string($subtitle),
+            'sub_description' => trim($eh_result_card_string($sub_description)),
         ];
     }
     wp_reset_postdata();

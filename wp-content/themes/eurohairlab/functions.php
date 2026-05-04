@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 require_once get_template_directory() . '/inc/site-data.php';
+require_once get_template_directory() . '/inc/page-i18n.php';
+require_once get_template_directory() . '/inc/metabox-category-i18n.php';
 require_once get_template_directory() . '/inc/domain-routing.php';
 require_once get_template_directory() . '/inc/metabox-home.php';
 require_once get_template_directory() . '/inc/metabox-about.php';

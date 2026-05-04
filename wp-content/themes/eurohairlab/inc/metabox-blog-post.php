@@ -65,7 +65,9 @@ function eurohairlab_get_blog_post_display_title(int $post_id): string
         return '';
     }
 
-    $t = rwmb_meta('eh_blog_title', [], $post_id);
+    $t = function_exists('eurohairlab_rwmb_page_meta')
+        ? eurohairlab_rwmb_page_meta($post_id, 'eh_blog_title', [])
+        : rwmb_meta('eh_blog_title', [], $post_id);
 
     return is_string($t) ? trim($t) : '';
 }
@@ -79,7 +81,9 @@ function eurohairlab_get_blog_post_description(int $post_id): string
         return '';
     }
 
-    $t = rwmb_meta('eh_blog_description', [], $post_id);
+    $t = function_exists('eurohairlab_rwmb_page_meta')
+        ? eurohairlab_rwmb_page_meta($post_id, 'eh_blog_description', [])
+        : rwmb_meta('eh_blog_description', [], $post_id);
 
     return is_string($t) ? trim($t) : '';
 }

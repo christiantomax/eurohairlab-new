@@ -19,11 +19,26 @@ declare(strict_types=1);
           <h1 class="font-heading mt-5 text-4xl font-bold leading-[0.94] md:text-6xl"><?php the_title(); ?></h1>
           <div class="mt-7 flex flex-wrap items-center gap-4 text-sm text-white/72">
             <span>By <?php the_author(); ?></span>
-            <span><?php echo wp_kses_post((string) get_the_category_list(', ')); ?></span>
+            <span><?php
+                $eh_cats = get_the_category();
+                $eh_cat_parts = [];
+                if (is_array($eh_cats)) {
+                    foreach ($eh_cats as $eh_cat) {
+                        if (!$eh_cat instanceof WP_Term) {
+                            continue;
+                        }
+                        $eh_label = function_exists('eurohairlab_get_category_display_name')
+                            ? eurohairlab_get_category_display_name($eh_cat)
+                            : (is_string($eh_cat->name) ? $eh_cat->name : '');
+                        $eh_cat_parts[] = '<a href="' . esc_url(get_category_link($eh_cat)) . '">' . esc_html($eh_label) . '</a>';
+                    }
+                }
+                echo wp_kses_post(implode(', ', $eh_cat_parts));
+                ?></span>
             <span><?php echo esc_html((string) max(1, (int) ceil(str_word_count(wp_strip_all_tags(get_the_content())) / 220))); ?> min read</span>
           </div>
           <?php if (has_excerpt()) : ?>
-            <p class="mt-7 max-w-3xl text-lg leading-8 text-white/80"><?php echo esc_html(get_the_excerpt()); ?></p>
+            <p class="mt-7 max-w-3xl text-lg leading-8 text-white/80"><?php echo esc_html((string) (get_the_excerpt() ?? '')); ?></p>
           <?php endif; ?>
         </div>
       </div>
