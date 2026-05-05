@@ -1,8 +1,10 @@
 <?php
 /**
- * Admin email when a public Online Assessment submission is stored.
+ * Email when a public Online Assessment submission is stored.
  *
- * Configuration: constants in wp-config.php (see EMAIL_ADMIN, MAIL_*).
+ * Submission flow: one notification to the assigned Hair Specialist agent when their email is valid;
+ * otherwise no email is sent. Mail transport: wp-config.php constants MAIL_* (and optional EMAIL_ADMIN
+ * for {@see eh_assessment_send_new_lead_admin_notification()} only).
  */
 
 declare(strict_types=1);
@@ -329,46 +331,19 @@ function eh_assessment_build_new_lead_admin_email_html(
 }
 
 /**
- * @param array<string, mixed> $sanitized
+ * Shared HTML mail send (from / content-type / logging).
+ *
+ * @param 'admin-mail'|'specialist-mail' $logPrefix
  */
-function eh_assessment_send_new_lead_admin_notification(
+function eh_assessment_wp_mail_new_lead_html(
+    string $to,
+    string $subject,
+    string $message,
+    string $logPrefix,
     string $masked_id,
-    int $branch_outlet_id,
-    string $agent_masking_id,
-    array $sanitized,
-    int $submission_id
+    string $extraLogContext = ''
 ): void {
-    if (!apply_filters('eh_assessment_send_new_lead_admin_email', true, $masked_id, $submission_id, $sanitized)) {
-        error_log('[eurohairlab-assessment][admin-mail] skip: filter eh_assessment_send_new_lead_admin_email returned false. report=' . $masked_id);
-
-        return;
-    }
-
-    $to = eh_assessment_admin_new_lead_recipient();
-    if ($to === '') {
-        $raw = eh_assessment_mail_config_raw('EMAIL_ADMIN', '');
-        $hint = !defined('EMAIL_ADMIN')
-            ? 'constant EMAIL_ADMIN is not defined in wp-config.php'
-            : ($raw === '' ? 'EMAIL_ADMIN is empty' : 'EMAIL_ADMIN fails WordPress is_email() check');
-        error_log('[eurohairlab-assessment][admin-mail] skip: no valid recipient. ' . $hint . ' report=' . $masked_id);
-
-        return;
-    }
-
     $mailerMode = eh_assessment_mail_mailer_mode();
-
-    $subject = sprintf(
-        '[EUROHAIRLAB] New Lead – Online Assessment (Report ID: %s)',
-        $masked_id
-    );
-
-    $message = eh_assessment_build_new_lead_admin_email_html(
-        $sanitized,
-        $masked_id,
-        $branch_outlet_id,
-        $agent_masking_id,
-        $submission_id
-    );
 
     $fromName = eh_assessment_mail_config_raw('MAIL_FROM_NAME', '[EUROHAIRLAB] Online Assessment System');
     $fromAddr = eh_assessment_mail_config_raw('MAIL_FROM_ADDRESS', '');
@@ -409,10 +384,12 @@ function eh_assessment_send_new_lead_admin_notification(
     remove_filter('wp_mail_from', $fromEmailFilter, 999);
     remove_filter('wp_mail_content_type', $contentTypeFilter, 999);
 
+    $ctx = $extraLogContext !== '' ? ' ' . $extraLogContext : '';
+
     if ($mailerMode === 'log') {
         error_log(
-            '[eurohairlab-assessment][admin-mail] MAIL_MAILER=log: nothing delivered to inbox; payload was logged as [mail:log]. report='
-            . $masked_id . ' intended_to=' . $to
+            '[eurohairlab-assessment][' . $logPrefix . '] MAIL_MAILER=log: nothing delivered to inbox; payload was logged as [mail:log]. report='
+            . $masked_id . ' intended_to=' . $to . $ctx
         );
 
         return;
@@ -420,23 +397,133 @@ function eh_assessment_send_new_lead_admin_notification(
 
     if ($sent) {
         error_log(
-            '[eurohairlab-assessment][admin-mail] wp_mail ok report=' . $masked_id
-            . ' to=' . $to . ' from=' . $fromAddr . ' mailer=' . ($mailerMode !== '' ? $mailerMode : 'default')
+            '[eurohairlab-assessment][' . $logPrefix . '] wp_mail ok report=' . $masked_id
+            . ' to=' . $to . ' from=' . $fromAddr . ' mailer=' . ($mailerMode !== '' ? $mailerMode : 'default') . $ctx
         );
 
         return;
     }
 
     error_log(
-        '[eurohairlab-assessment][admin-mail] wp_mail FAILED report=' . $masked_id
+        '[eurohairlab-assessment][' . $logPrefix . '] wp_mail FAILED report=' . $masked_id
         . ' to=' . $to . ' from=' . $fromAddr . ' mailer=' . ($mailerMode !== '' ? $mailerMode : 'default')
-        . ( $lastMailError !== '' ? ' wp_mail_failed: ' . $lastMailError : ' (no wp_mail_failed message; check server mail / SMTP)' )
+        . ($lastMailError !== '' ? ' wp_mail_failed: ' . $lastMailError : ' (no wp_mail_failed message; check server mail / SMTP)')
+        . $ctx
     );
 }
 
 /**
- * Email the Hair Specialist agent when their assigned Online Assessment lead is stored.
- * Skips when the agent row has no valid email (admin notification still goes to EMAIL_ADMIN).
+ * Single notification after a submission is stored: Hair Specialist agent only when their email is valid (no admin fallback).
+ *
+ * @param array<string, mixed> $sanitized
+ */
+function eh_assessment_send_new_lead_submission_notification(
+    string $masked_id,
+    int $branch_outlet_id,
+    string $agent_masking_id,
+    array $sanitized,
+    int $submission_id
+): void {
+    $mid = eh_assessment_normalize_agent_masking_id($agent_masking_id);
+    if ($mid === '') {
+        error_log('[eurohairlab-assessment][submission-mail] skip: no agent_masking_id; no email. report=' . $masked_id);
+
+        return;
+    }
+
+    global $wpdb;
+    $table = eh_hair_specialist_agent_table_name();
+    $row = $wpdb->get_row(
+        $wpdb->prepare(
+            "SELECT name, email FROM {$table} WHERE deleted_at IS NULL AND masking_id = %s LIMIT 1",
+            $mid
+        ),
+        ARRAY_A
+    );
+    if (!is_array($row)) {
+        error_log('[eurohairlab-assessment][submission-mail] skip: agent row not found; no email. report=' . $masked_id);
+
+        return;
+    }
+
+    $agentTo = trim((string) ($row['email'] ?? ''));
+    if ($agentTo === '' || !is_email($agentTo)) {
+        error_log('[eurohairlab-assessment][submission-mail] skip: agent email empty or invalid; no email. report=' . $masked_id);
+
+        return;
+    }
+
+    if (!apply_filters('eh_assessment_send_new_lead_hair_specialist_email', true, $masked_id, $submission_id, $sanitized)) {
+        error_log('[eurohairlab-assessment][specialist-mail] skip: filter eh_assessment_send_new_lead_hair_specialist_email returned false. report=' . $masked_id);
+
+        return;
+    }
+
+    $message = eh_assessment_build_new_lead_admin_email_html(
+        $sanitized,
+        $masked_id,
+        $branch_outlet_id,
+        $agent_masking_id,
+        $submission_id
+    );
+
+    $subject = sprintf(
+        '[EUROHAIRLAB] New lead assigned to you — Online Assessment (Report ID: %s)',
+        $masked_id
+    );
+    $agentLabel = trim((string) ($row['name'] ?? ''));
+    $extraLog = $agentLabel !== '' ? 'agent=' . $agentLabel : '';
+
+    eh_assessment_wp_mail_new_lead_html($agentTo, $subject, $message, 'specialist-mail', $masked_id, $extraLog);
+}
+
+/**
+ * Sends the new-lead email only to {@see EMAIL_ADMIN}. Prefer {@see eh_assessment_send_new_lead_submission_notification()} for public submissions.
+ *
+ * @param array<string, mixed> $sanitized
+ */
+function eh_assessment_send_new_lead_admin_notification(
+    string $masked_id,
+    int $branch_outlet_id,
+    string $agent_masking_id,
+    array $sanitized,
+    int $submission_id
+): void {
+    if (!apply_filters('eh_assessment_send_new_lead_admin_email', true, $masked_id, $submission_id, $sanitized)) {
+        error_log('[eurohairlab-assessment][admin-mail] skip: filter eh_assessment_send_new_lead_admin_email returned false. report=' . $masked_id);
+
+        return;
+    }
+
+    $to = eh_assessment_admin_new_lead_recipient();
+    if ($to === '') {
+        $raw = eh_assessment_mail_config_raw('EMAIL_ADMIN', '');
+        $hint = !defined('EMAIL_ADMIN')
+            ? 'constant EMAIL_ADMIN is not defined in wp-config.php'
+            : ($raw === '' ? 'EMAIL_ADMIN is empty' : 'EMAIL_ADMIN fails WordPress is_email() check');
+        error_log('[eurohairlab-assessment][admin-mail] skip: no valid recipient. ' . $hint . ' report=' . $masked_id);
+
+        return;
+    }
+
+    $subject = sprintf(
+        '[EUROHAIRLAB] New Lead – Online Assessment (Report ID: %s)',
+        $masked_id
+    );
+
+    $message = eh_assessment_build_new_lead_admin_email_html(
+        $sanitized,
+        $masked_id,
+        $branch_outlet_id,
+        $agent_masking_id,
+        $submission_id
+    );
+
+    eh_assessment_wp_mail_new_lead_html($to, $subject, $message, 'admin-mail', $masked_id, '');
+}
+
+/**
+ * Email only the Hair Specialist agent (no EMAIL_ADMIN fallback). Prefer {@see eh_assessment_send_new_lead_submission_notification()} for submission saves.
  *
  * @param array<string, mixed> $sanitized
  */
@@ -480,7 +567,6 @@ function eh_assessment_send_new_lead_hair_specialist_notification(
         return;
     }
 
-    $mailerMode = eh_assessment_mail_mailer_mode();
     $agentLabel = trim((string) ($row['name'] ?? ''));
     $subject = sprintf(
         '[EUROHAIRLAB] New lead assigned to you — Online Assessment (Report ID: %s)',
@@ -495,68 +581,8 @@ function eh_assessment_send_new_lead_hair_specialist_notification(
         $submission_id
     );
 
-    $fromName = eh_assessment_mail_config_raw('MAIL_FROM_NAME', '[EUROHAIRLAB] Online Assessment System');
-    $fromAddr = eh_assessment_mail_config_raw('MAIL_FROM_ADDRESS', '');
-    if ($fromAddr === '' || !is_email($fromAddr)) {
-        $fromAddr = (string) get_option('admin_email');
-    }
-
-    $fromNameFilter = static function () use ($fromName): string {
-        return $fromName;
-    };
-    $fromEmailFilter = static function () use ($fromAddr): string {
-        return $fromAddr;
-    };
-    $contentTypeFilter = static function (): string {
-        return 'text/html';
-    };
-
-    $lastMailError = '';
-    $onMailFailed = static function ($error) use (&$lastMailError): void {
-        if ($error instanceof WP_Error) {
-            $lastMailError = $error->get_error_message();
-            $data = $error->get_error_data();
-            if (is_array($data) && isset($data['phpmailer_exception_code'])) {
-                $lastMailError .= ' (code ' . (string) $data['phpmailer_exception_code'] . ')';
-            }
-        }
-    };
-
-    add_filter('wp_mail_from_name', $fromNameFilter, 999);
-    add_filter('wp_mail_from', $fromEmailFilter, 999);
-    add_filter('wp_mail_content_type', $contentTypeFilter, 999);
-    add_action('wp_mail_failed', $onMailFailed, 10, 1);
-
-    $sent = wp_mail($to, $subject, $message);
-
-    remove_action('wp_mail_failed', $onMailFailed, 10);
-    remove_filter('wp_mail_from_name', $fromNameFilter, 999);
-    remove_filter('wp_mail_from', $fromEmailFilter, 999);
-    remove_filter('wp_mail_content_type', $contentTypeFilter, 999);
-
-    if ($mailerMode === 'log') {
-        error_log(
-            '[eurohairlab-assessment][specialist-mail] MAIL_MAILER=log: nothing delivered; report='
-            . $masked_id . ' intended_to=' . $to . ($agentLabel !== '' ? ' agent=' . $agentLabel : '')
-        );
-
-        return;
-    }
-
-    if ($sent) {
-        error_log(
-            '[eurohairlab-assessment][specialist-mail] wp_mail ok report=' . $masked_id
-            . ' to=' . $to . ' from=' . $fromAddr . ' mailer=' . ($mailerMode !== '' ? $mailerMode : 'default')
-        );
-
-        return;
-    }
-
-    error_log(
-        '[eurohairlab-assessment][specialist-mail] wp_mail FAILED report=' . $masked_id
-        . ' to=' . $to . ' from=' . $fromAddr
-        . ($lastMailError !== '' ? ' wp_mail_failed: ' . $lastMailError : '')
-    );
+    $extraLog = $agentLabel !== '' ? 'agent=' . $agentLabel : '';
+    eh_assessment_wp_mail_new_lead_html($to, $subject, $message, 'specialist-mail', $masked_id, $extraLog);
 }
 
 /**

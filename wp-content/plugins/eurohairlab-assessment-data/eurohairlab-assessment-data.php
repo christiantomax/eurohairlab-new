@@ -3,7 +3,7 @@
  * Plugin Name: Eurohairlab Assessment Data
  * Description: Stores assessment submissions, branch office links, and related data in custom database tables.
  * Plugin URI: https://qoar.id
- * Version: 1.8.4
+ * Version: 1.8.6
  * Author: Qoar Creative Agency
  * Author URI: https://qoar.id
  */
@@ -22,7 +22,7 @@ require_once __DIR__ . '/eh-assessment-submission-logic.php';
 require_once __DIR__ . '/eh-assessment-cekat-webhook-i18n.php';
 require_once __DIR__ . '/eh-assessment-admin-notification-mail.php';
 
-const EH_ASSESSMENT_DATA_VERSION = '1.8.4';
+const EH_ASSESSMENT_DATA_VERSION = '1.8.6';
 const EH_ASSESSMENT_REPORT_PDF_MASKING_ID_MAX_LENGTH = 64;
 const EH_ASSESSMENT_AGENT_MASKING_ID_MAX_LENGTH = 64;
 const EH_ASSESSMENT_AGENT_CODE_MAX_LENGTH = 64;
@@ -4222,15 +4222,8 @@ function eh_assessment_insert_submission(array $payload)
         eh_assessment_daily_overview_increment((int) $assignmentMeta['agent_db_id'], (string) $assignmentMeta['overview_date']);
     }
 
-    // Notify admin first: must not depend on Cekat webhook (network/errors/filters on webhook must not block email).
-    eh_assessment_send_new_lead_admin_notification(
-        (string) $row['masked_id'],
-        $branch_outlet_id,
-        $agent_mid,
-        $sanitized,
-        $newSubmissionId
-    );
-    eh_assessment_send_new_lead_hair_specialist_notification(
+    // New-lead email: Hair Specialist agent only when their email is valid (no admin fallback). Independent of Cekat webhook.
+    eh_assessment_send_new_lead_submission_notification(
         (string) $row['masked_id'],
         $branch_outlet_id,
         $agent_mid,
@@ -5758,6 +5751,15 @@ function eh_assessment_handle_admin_actions(): void
         if ($assignmentMetaManual['agent_db_id'] > 0) {
             eh_assessment_daily_overview_increment((int) $assignmentMetaManual['agent_db_id'], (string) $assignmentMetaManual['overview_date']);
         }
+
+        eh_assessment_send_new_lead_submission_notification(
+            (string) $row['masked_id'],
+            $row_branch_id,
+            $agent_mid_manual,
+            $sanitized,
+            $new_id
+        );
+
         wp_safe_redirect(
             add_query_arg(
                 [
