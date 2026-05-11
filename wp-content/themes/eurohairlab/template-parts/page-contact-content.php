@@ -43,6 +43,7 @@ $resolve_link = static function ($value, string $fallback = ''): string {
 
 $contact_default = [
     'map_embed_url' => 'https://www.google.com/maps/d/u/0/embed?mid=1J8SoXlVhDI_sC2xNRYTBhqiw3h5hWVU&ehbc=2E312F&noprof=1',
+    'location_title' => 'Clinic Location',
     'hours_title' => 'Operating Hours',
     'operating_hours' => '09.00 - 21.00',
     'whatsapp_text' => 'WhatsApp Consultation',
@@ -53,6 +54,7 @@ $contact_default = [
 
 $contact = array_merge($contact_default, array_filter([
     'map_embed_url' => $mb_get('eh_contact_map_embed_url'),
+    'location_title' => $mb_get('eh_contact_location_title'),
     'hours_title' => $mb_get('eh_contact_hours_title'),
     'operating_hours' => $mb_get('eh_contact_operating_hours'),
     'whatsapp_text' => $mb_get('eh_contact_whatsapp_text'),
@@ -86,7 +88,7 @@ $contact = array_merge($contact_default, array_filter([
               loading="lazy"
               decoding="async"
             >
-            <span>Clinic Location</span>
+            <span><?php echo esc_html($contact['location_title']); ?></span>
           </h1>
 
           <p class="mt-5 flex items-center gap-3 font-futuraHv text-[24px] font-normal capitalize leading-none text-eh-ink">
@@ -135,7 +137,7 @@ $contact = array_merge($contact_default, array_filter([
             loading="lazy"
             decoding="async"
           >
-          <span>Clinic Location</span>
+          <span><?php echo esc_html($contact['location_title']); ?></span>
         </h1>
 
         <p class="mt-5 flex items-center gap-3 font-futuraHv text-[24px] font-normal capitalize leading-none text-eh-ink">

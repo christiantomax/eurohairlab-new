@@ -14,6 +14,7 @@ function eurohairlab_contact_map_register_meta_boxes($meta_boxes)
         'closed'     => true,
         'fields'     => [
             ['type' => 'textarea', 'name' => esc_html__('Map Embed URL', 'eurohairlab'), 'id' => 'eh_contact_map_embed_url', 'std' => ''],
+            ['type' => 'text', 'name' => esc_html__('Location title', 'eurohairlab'), 'id' => 'eh_contact_location_title', 'std' => 'Clinic Location'],
             ['type' => 'text', 'name' => esc_html__('Hours Title', 'eurohairlab'), 'id' => 'eh_contact_hours_title', 'std' => ''],
             ['type' => 'text', 'name' => esc_html__('Operating Hours', 'eurohairlab'), 'id' => 'eh_contact_operating_hours', 'std' => ''],
             ['type' => 'text', 'name' => esc_html__('WhatsApp Text', 'eurohairlab'), 'id' => 'eh_contact_whatsapp_text', 'std' => ''],
@@ -40,6 +41,7 @@ function eurohairlab_seed_contact_meta_box_defaults(): void
     }
 
     rwmb_set_meta($contact_page_id, 'eh_contact_map_embed_url', 'https://www.google.com/maps/d/u/0/embed?mid=1J8SoXlVhDI_sC2xNRYTBhqiw3h5hWVU&ehbc=2E312F&noprof=1');
+    rwmb_set_meta($contact_page_id, 'eh_contact_location_title', 'Clinic Location');
     rwmb_set_meta($contact_page_id, 'eh_contact_hours_title', 'Operating Hours');
     rwmb_set_meta($contact_page_id, 'eh_contact_operating_hours', '09.00 - 21.00');
     rwmb_set_meta($contact_page_id, 'eh_contact_whatsapp_text', 'WhatsApp Consultation');
@@ -50,3 +52,29 @@ function eurohairlab_seed_contact_meta_box_defaults(): void
     update_post_meta($contact_page_id, '_eh_contact_meta_seeded', '1');
 }
 add_action('admin_init', 'eurohairlab_seed_contact_meta_box_defaults');
+
+/**
+ * One-time: set default Location title on existing Contact pages seeded before this field existed.
+ */
+function eurohairlab_migrate_contact_location_title_meta(): void
+{
+    if (!is_admin() || !function_exists('rwmb_meta') || !function_exists('rwmb_set_meta')) {
+        return;
+    }
+
+    if ((string) get_option('eh_contact_location_title_v1', '') === '1') {
+        return;
+    }
+
+    $contact_page = get_page_by_path('contact', OBJECT, 'page');
+    $contact_page_id = $contact_page instanceof WP_Post ? (int) $contact_page->ID : 0;
+    if ($contact_page_id > 0) {
+        $en = rwmb_meta('eh_contact_location_title', [], $contact_page_id);
+        if (!function_exists('eurohairlab_meta_value_nonempty') || !eurohairlab_meta_value_nonempty($en)) {
+            rwmb_set_meta($contact_page_id, 'eh_contact_location_title', 'Clinic Location');
+        }
+    }
+
+    update_option('eh_contact_location_title_v1', '1');
+}
+add_action('admin_init', 'eurohairlab_migrate_contact_location_title_meta');

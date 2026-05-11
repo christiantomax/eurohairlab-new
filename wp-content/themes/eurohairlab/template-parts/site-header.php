@@ -7,6 +7,8 @@ $nav_items = eurohairlab_get_primary_nav_items();
 $free_scalp_analysis_url = eurohairlab_resolve_free_scalp_analysis_href('');
 $free_scalp_analysis_link_attrs = eurohairlab_free_scalp_analysis_link_attributes($free_scalp_analysis_url);
 $is_homepage = is_front_page();
+$cta_desktop_label = eurohairlab_public_ui_text('Start Online Hair Assessment', 'Mulai asesmen rambut online');
+$cta_mobile_label = eurohairlab_public_ui_text('Start Online Hair Diagnosis', 'Mulai diagnosis rambut online');
 
 /** White bar + dark nav; desktop CTA hover = black bg / white text. */
 $marketing_header_slugs = [
@@ -72,7 +74,7 @@ if ($is_marketing_header) {
           class="uppercase site-header__cta inline-flex min-h-4 items-center justify-center border px-5 py-2 text-sm transition <?php echo esc_attr($cta_class); ?>"
           <?php echo $free_scalp_analysis_link_attrs; ?>
         >
-          Start Online Hair Assessment
+          <?php echo esc_html($cta_desktop_label); ?>
         </a>
       </div>
       <button
@@ -102,7 +104,7 @@ if ($is_marketing_header) {
       <?php endforeach; ?>
       <li>
         <a href="<?php echo esc_url($free_scalp_analysis_url); ?>" class="mt-4 inline-flex min-h-4 w-full items-center justify-center border border-ink/70 px-5 py-4 text-center text-base text-ink transition hover:bg-black hover:text-white hover:border-black"<?php echo $free_scalp_analysis_link_attrs; ?>>
-          Start Online Hair Diagnosis
+          <?php echo esc_html($cta_mobile_label); ?>
         </a>
       </li>
     </ul>

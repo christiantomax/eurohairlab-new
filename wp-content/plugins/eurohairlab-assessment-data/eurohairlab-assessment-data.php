@@ -3,7 +3,7 @@
  * Plugin Name: Eurohairlab Assessment Data
  * Description: Stores assessment submissions, branch office links, and related data in custom database tables.
  * Plugin URI: https://qoar.id
- * Version: 1.8.6
+ * Version: 1.8.7
  * Author: Qoar Creative Agency
  * Author URI: https://qoar.id
  */
@@ -22,7 +22,7 @@ require_once __DIR__ . '/eh-assessment-submission-logic.php';
 require_once __DIR__ . '/eh-assessment-cekat-webhook-i18n.php';
 require_once __DIR__ . '/eh-assessment-admin-notification-mail.php';
 
-const EH_ASSESSMENT_DATA_VERSION = '1.8.6';
+const EH_ASSESSMENT_DATA_VERSION = '1.8.7';
 const EH_ASSESSMENT_REPORT_PDF_MASKING_ID_MAX_LENGTH = 64;
 const EH_ASSESSMENT_AGENT_MASKING_ID_MAX_LENGTH = 64;
 const EH_ASSESSMENT_AGENT_CODE_MAX_LENGTH = 64;
@@ -6631,7 +6631,7 @@ function eh_assessment_register_admin_menu(): void
         'eh-assessment-submissions',
         'Hair Specialist Agents',
         'Hair Specialist Agents',
-        'manage_options',
+        EH_ASSESSMENT_ACCESS_CAPABILITY,
         'eh-hair-specialist-agents',
         'eh_assessment_render_hair_specialist_agents_page'
     );
@@ -6977,16 +6977,17 @@ function eh_assessment_render_branch_outlet_page(): void
 
 function eh_assessment_render_hair_specialist_agents_page(): void
 {
-    if (!eh_assessment_user_is_administrator()) {
+    if (!eh_assessment_current_user_can_access_admin()) {
         wp_die('You do not have permission to access this page.');
     }
+    $is_admin_user = eh_assessment_user_is_administrator();
 
     eh_assessment_migrate_v212_hair_specialist_agent_exclude_from_round_robin();
 
     global $wpdb;
     $agent_table = eh_hair_specialist_agent_table_name();
     $branch_table = eh_branch_outlet_table_name();
-    $hsa_status = isset($_GET['hsa_status']) && (string) $_GET['hsa_status'] === 'trash' ? 'trash' : 'active';
+    $hsa_status = ($is_admin_user && isset($_GET['hsa_status']) && (string) $_GET['hsa_status'] === 'trash') ? 'trash' : 'active';
     $search_term = sanitize_text_field((string) ($_GET['s'] ?? ''));
     $base = admin_url('admin.php?page=eh-hair-specialist-agents');
 
@@ -7020,7 +7021,11 @@ function eh_assessment_render_hair_specialist_agents_page(): void
         echo '<div class="notice notice-error is-dismissible"><p>' . esc_html('Could not save the Hair Specialist Agent.') . '</p></div>';
     }
 
-    echo '<p style="margin:12px 0 16px;"><button type="button" class="button button-primary" id="eh-hsa-open-add">Add Hair Specialist Agent</button></p>';
+    if ($is_admin_user) {
+        echo '<p style="margin:12px 0 16px;"><button type="button" class="button button-primary" id="eh-hsa-open-add">Add Hair Specialist Agent</button></p>';
+    } else {
+        echo '<p class="description" style="margin:12px 0 16px;">View only. You can use <strong>Get Agent Assessment Link</strong> but cannot add, edit, restore, or delete agents.</p>';
+    }
 
     $active_tab_url = $search_term !== '' ? add_query_arg('s', $search_term, $base) : $base;
     $trash_tab_url = add_query_arg('hsa_status', 'trash', $base);
@@ -7028,10 +7033,12 @@ function eh_assessment_render_hair_specialist_agents_page(): void
         $trash_tab_url = add_query_arg('s', $search_term, $trash_tab_url);
     }
 
-    echo '<ul class="subsubsub">';
-    echo '<li><a href="' . esc_url($active_tab_url) . '"' . ($hsa_status === 'active' ? ' class="current"' : '') . '>Active</a> | </li>';
-    echo '<li><a href="' . esc_url($trash_tab_url) . '"' . ($hsa_status === 'trash' ? ' class="current"' : '') . '>Trash</a></li>';
-    echo '</ul>';
+    if ($is_admin_user) {
+        echo '<ul class="subsubsub">';
+        echo '<li><a href="' . esc_url($active_tab_url) . '"' . ($hsa_status === 'active' ? ' class="current"' : '') . '>Active</a> | </li>';
+        echo '<li><a href="' . esc_url($trash_tab_url) . '"' . ($hsa_status === 'trash' ? ' class="current"' : '') . '>Trash</a></li>';
+        echo '</ul>';
+    }
 
     $search_sql = '';
     $search_vals = [];
@@ -7065,7 +7072,7 @@ function eh_assessment_render_hair_specialist_agents_page(): void
 
     echo '<form method="get" action="" style="margin:12px 0 16px;display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;">';
     echo '<input type="hidden" name="page" value="eh-hair-specialist-agents">';
-    if ($hsa_status === 'trash') {
+    if ($is_admin_user && $hsa_status === 'trash') {
         echo '<input type="hidden" name="hsa_status" value="trash">';
     }
     echo '<input type="search" name="s" value="' . esc_attr($search_term) . '" class="regular-text" placeholder="Search ID, masking id, name, email, code, branch, updated…">';
@@ -7106,7 +7113,7 @@ function eh_assessment_render_hair_specialist_agents_page(): void
             echo '<td>' . ($exRr ? esc_html('Excluded') : esc_html('Active')) . '</td>';
             echo '<td>' . esc_html(eh_assessment_format_admin_datetime((string) ($row['updated_at'] ?? ''))) . '</td>';
             echo '<td>';
-            if ($hsa_status === 'trash') {
+            if ($is_admin_user && $hsa_status === 'trash') {
                 echo '<form method="post" action="' . esc_url(admin_url('admin.php')) . '" style="display:inline;">';
                 wp_nonce_field('eh_restore_hair_specialist_agent');
                 echo '<input type="hidden" name="eh_assessment_action" value="restore_hair_specialist_agent">';
@@ -7114,14 +7121,20 @@ function eh_assessment_render_hair_specialist_agents_page(): void
                 echo '<button type="submit" class="button button-small">Restore</button></form>';
             } else {
                 if ($assessment_url !== '') {
-                    echo '<button type="button" class="button button-small eh-hsa-copy-link" data-url="' . esc_url($assessment_url) . '">Get Agent Assessment Link</button> ';
+                    if ($is_admin_user) {
+                        echo '<button type="button" class="button button-small eh-hsa-copy-link" data-url="' . esc_url($assessment_url) . '">Get Agent Assessment Link</button> ';
+                    } else {
+                        echo '<a class="button button-small" target="_blank" rel="noopener noreferrer" href="' . esc_url($assessment_url) . '">Get Agent Assessment Link</a> ';
+                    }
                 }
-                echo '<button type="button" class="button button-small eh-hsa-open-edit" data-row="' . esc_attr($b64) . '">Edit</button> ';
-                echo '<form method="post" action="' . esc_url(admin_url('admin.php')) . '" style="display:inline;margin-left:4px;">';
-                wp_nonce_field('eh_trash_hair_specialist_agent');
-                echo '<input type="hidden" name="eh_assessment_action" value="trash_hair_specialist_agent">';
-                echo '<input type="hidden" name="hair_specialist_agent_id" value="' . esc_attr((string) $id) . '">';
-                echo '<button type="submit" class="button button-small" onclick="return confirm(\'Move this record to trash?\');">Delete</button></form>';
+                if ($is_admin_user) {
+                    echo '<button type="button" class="button button-small eh-hsa-open-edit" data-row="' . esc_attr($b64) . '">Edit</button> ';
+                    echo '<form method="post" action="' . esc_url(admin_url('admin.php')) . '" style="display:inline;margin-left:4px;">';
+                    wp_nonce_field('eh_trash_hair_specialist_agent');
+                    echo '<input type="hidden" name="eh_assessment_action" value="trash_hair_specialist_agent">';
+                    echo '<input type="hidden" name="hair_specialist_agent_id" value="' . esc_attr((string) $id) . '">';
+                    echo '<button type="submit" class="button button-small" onclick="return confirm(\'Move this record to trash?\');">Delete</button></form>';
+                }
             }
             echo '</td>';
             echo '</tr>';
@@ -7129,6 +7142,11 @@ function eh_assessment_render_hair_specialist_agents_page(): void
     }
 
     echo '</tbody></table>';
+    if (!$is_admin_user) {
+        echo '</div>';
+
+        return;
+    }
 
     $branch_opts = eh_assessment_get_active_branch_outlet_options();
 

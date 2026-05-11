@@ -228,33 +228,49 @@ function eurohairlab_get_blog_list_page_url(): string
     return trailingslashit(home_url('blog-list'));
 }
 
+/**
+ * Public marketing UI copy: English by default, Indonesian when `?lang=id` / cookie selects ID.
+ */
+function eurohairlab_public_ui_text(string $english, string $indonesian): string
+{
+    if (!function_exists('eurohairlab_get_public_lang')) {
+        return $english;
+    }
+
+    return eurohairlab_get_public_lang() === 'id' ? $indonesian : $english;
+}
+
 function eurohairlab_get_primary_nav_items(): array
 {
+    $t = static fn(string $en, string $id): string => eurohairlab_public_ui_text($en, $id);
+
     return [
-        ['label' => 'About', 'url' => eurohairlab_get_page_url('about', '/about/')],
-        ['label' => 'Diagnosis', 'url' => eurohairlab_get_page_url('diagnosis', '/diagnosis/')],
-        ['label' => 'Treatments', 'url' => eurohairlab_get_treatments_page_url()],
-        ['label' => 'Results', 'url' => eurohairlab_get_page_url('results', '/results/')],
-        ['label' => 'Promo', 'url' => eurohairlab_get_page_url('promo', '/promo/')],
-        ['label' => 'Blog', 'url' => eurohairlab_get_blog_list_page_url()],
-        ['label' => 'Contact', 'url' => eurohairlab_get_page_url('contact', '/contact/')],
+        ['label' => $t('About', 'Tentang'), 'url' => eurohairlab_get_page_url('about', '/about/')],
+        ['label' => $t('Diagnosis', 'Diagnosis'), 'url' => eurohairlab_get_page_url('diagnosis', '/diagnosis/')],
+        ['label' => $t('Treatments', 'Perawatan'), 'url' => eurohairlab_get_treatments_page_url()],
+        ['label' => $t('Results', 'Hasil'), 'url' => eurohairlab_get_page_url('results', '/results/')],
+        ['label' => $t('Promo', 'Promo'), 'url' => eurohairlab_get_page_url('promo', '/promo/')],
+        ['label' => $t('Blog', 'Blog'), 'url' => eurohairlab_get_blog_list_page_url()],
+        ['label' => $t('Contact', 'Kontak'), 'url' => eurohairlab_get_page_url('contact', '/contact/')],
     ];
 }
 
 function eurohairlab_get_footer_nav_groups(): array
 {
+    $t = static fn(string $en, string $id): string => eurohairlab_public_ui_text($en, $id);
+
     return [
         [
-            ['label' => 'Treatments', 'url' => eurohairlab_get_treatments_page_url()],
-            ['label' => 'Success Stories', 'url' => eurohairlab_get_page_url('results', '/results/')],
+            ['label' => $t('Treatments', 'Perawatan'), 'url' => eurohairlab_get_treatments_page_url()],
+            ['label' => $t('Success Stories', 'Cerita sukses'), 'url' => eurohairlab_get_page_url('results', '/results/')],
         ],
         [
-            ['label' => 'Scalp Diagnosis', 'url' => eurohairlab_get_page_url('diagnosis', '/diagnosis/')],
-            ['label' => 'Promo', 'url' => eurohairlab_get_page_url('promo', '/promo/')],
+            ['label' => $t('Scalp Diagnosis', 'Diagnosis kulit kepala'), 'url' => eurohairlab_get_page_url('diagnosis', '/diagnosis/')],
+            ['label' => $t('Promo', 'Promo'), 'url' => eurohairlab_get_page_url('promo', '/promo/')],
         ],
         [
-            ['label' => 'Contact', 'url' => eurohairlab_get_page_url('contact', '/contact/')],
-            ['label' => 'About Us', 'url' => eurohairlab_get_page_url('about', '/about/')],
+            ['label' => $t('Contact', 'Kontak'), 'url' => eurohairlab_get_page_url('contact', '/contact/')],
+            ['label' => $t('About Us', 'Tentang kami'), 'url' => eurohairlab_get_page_url('about', '/about/')],
         ],
     ];
 }

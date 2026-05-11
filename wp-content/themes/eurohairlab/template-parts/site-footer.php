@@ -10,6 +10,8 @@ $footer_nav_groups = eurohairlab_get_footer_nav_groups();
 $free_scalp_analysis_url = eurohairlab_resolve_free_scalp_analysis_href('');
 $free_scalp_analysis_link_attrs = eurohairlab_free_scalp_analysis_link_attributes($free_scalp_analysis_url);
 $is_figma_pages = is_page([]);
+$footer_cta_label = eurohairlab_public_ui_text('Start Online Hair Assessment', 'Mulai asesmen rambut online');
+$footer_blog_label = eurohairlab_public_ui_text('Blog', 'Blog');
 ?>
 <?php if (!$is_figma_pages) : ?>
 <footer class="relative flex min-h-[100vh] flex-col overflow-hidden bg-black text-white">
@@ -27,7 +29,7 @@ $is_figma_pages = is_page([]);
 
       <div class="min-w-0 space-y-6 text-sm font-semibold text-white/92 lg:justify-self-end">
         <div class="space-y-4">
-          <a class="footer-link inline-block" href="<?php echo esc_url(eurohairlab_get_blog_list_page_url()); ?>">Blog</a>
+          <a class="footer-link inline-block" href="<?php echo esc_url(eurohairlab_get_blog_list_page_url()); ?>"><?php echo esc_html($footer_blog_label); ?></a>
           <div class="flex items-center gap-4">
             <a href="<?php echo esc_url($social_instagram); ?>" target="_blank" rel="noopener noreferrer" aria-label="Instagram" class="inline-flex items-center transition hover:opacity-80">
               <img
@@ -73,7 +75,7 @@ $is_figma_pages = is_page([]);
           class="uppercase site-header__cta inline-flex min-h-11 w-full items-center justify-center whitespace-nowrap border border-white/85 px-4 py-2 text-[12px] text-white transition hover:bg-white hover:text-black sm:px-5 sm:text-sm lg:w-[13rem]"
           <?php echo $free_scalp_analysis_link_attrs; ?>
         >
-          Start Online Hair Assessment
+          <?php echo esc_html($footer_cta_label); ?>
         </a>
       </div>
     </div>
@@ -117,7 +119,7 @@ $is_figma_pages = is_page([]);
       <?php endforeach; ?>
 
       <div class="min-w-0 space-y-8 text-sm font-semibold text-white/92 lg:space-y-8">
-        <a class="footer-link font-heading inline-block" href="<?php echo esc_url(eurohairlab_get_blog_list_page_url()); ?>">Blog</a>
+        <a class="footer-link font-heading inline-block" href="<?php echo esc_url(eurohairlab_get_blog_list_page_url()); ?>"><?php echo esc_html($footer_blog_label); ?></a>
         <div class="flex items-center gap-5">
           <a href="<?php echo esc_url($social_instagram); ?>" target="_blank" rel="noopener noreferrer" aria-label="Instagram" class="inline-flex items-center transition hover:opacity-80">
             <img
@@ -164,7 +166,7 @@ $is_figma_pages = is_page([]);
           class="uppercase site-header__cta inline-flex min-h-4 w-full items-center justify-center whitespace-nowrap border border-white/90 px-4 py-2 text-[10px] text-white transition hover:bg-white hover:text-black sm:px-5 lg:w-full lg:max-w-[11rem]"
           <?php echo $free_scalp_analysis_link_attrs; ?>
         >
-          Start Online Hair Assessment
+          <?php echo esc_html($footer_cta_label); ?>
         </a>
       </div>
     </div>
