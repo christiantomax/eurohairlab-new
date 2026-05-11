@@ -11,6 +11,22 @@ $figma_uri = $theme_uri . '/assets/images/figma';
 
 $page_id = get_queried_object_id();
 
+$results_ui = [
+    'before' => eurohairlab_public_ui_text('Before', 'Sebelum'),
+    'after' => eurohairlab_public_ui_text('After', 'Sesudah'),
+    'before_alt' => eurohairlab_public_ui_text('Before — %s', 'Sebelum — %s'),
+    'after_alt' => eurohairlab_public_ui_text('After — %s', 'Sesudah — %s'),
+    'before_result_alt' => eurohairlab_public_ui_text('Before result', 'Foto sebelum'),
+    'after_result_alt' => eurohairlab_public_ui_text('After result', 'Foto sesudah'),
+    'prev' => eurohairlab_public_ui_text('Previous', 'Sebelumnya'),
+    'next' => eurohairlab_public_ui_text('Next', 'Berikutnya'),
+    'close' => eurohairlab_public_ui_text('Close', 'Tutup'),
+    'prev_images' => eurohairlab_public_ui_text('Previous images in this result', 'Gambar sebelumnya untuk hasil ini'),
+    'next_images' => eurohairlab_public_ui_text('Next images in this result', 'Gambar berikutnya untuk hasil ini'),
+    'see_more' => eurohairlab_public_ui_text('See More', 'Lihat selengkapnya'),
+    'results_count' => eurohairlab_public_ui_text('%d Results', '%d Hasil'),
+];
+
 $hero_image = $figma_uri . '/figma-results-hero.webp';
 $hero_title = '3 Million Cases Worldwide';
 $hero_paragraph_html = '<p>EUROHAIRLAB by DR. SCALP has helped over 3 million people around the world take control of their hair health. With our ScalpFirst™ philosophy and diagnosis-first approach, every treatment is tailored to optimize your scalp environment and deliver results that last. Experience the care and expertise trusted by millions.</p>';
@@ -100,6 +116,9 @@ if ($q->have_posts()) {
             $legacy_category = function_exists('rwmb_meta') ? rwmb_meta('eh_result_category', [], $pid) : '';
             $subtitle = is_string($legacy_category) && trim($legacy_category) !== '' ? $legacy_category : 'Case Studies';
         }
+        if (is_string($subtitle)) {
+            $subtitle = eurohairlab_results_localize_case_studies_label($subtitle);
+        }
         $sub_description = $mb('eh_result_sub_description');
         if (!is_string($sub_description) || trim($sub_description) === '') {
             $legacy_paragraph_sub = $mb('eh_result_paragraph_subtitle');
@@ -131,7 +150,7 @@ if ($result_cards === []) {
             'card_title' => 'Female, 40s',
             'short_description' => '4 Months on Extract',
             'testimonial' => 'I had severe hair thinning after stress and hormonal imbalance. After the program, my hair density improved significantly.',
-            'subtitle' => 'Case Studies',
+            'subtitle' => eurohairlab_public_ui_text('Case Studies', 'Studi kasus'),
             'sub_description' => 'This case study highlights the importance of diagnosis-first treatment and consistent scalp follow-up.',
         ],
         [
@@ -141,7 +160,7 @@ if ($result_cards === []) {
             'card_title' => 'Female, 25',
             'short_description' => '4 Months on Supplements & Extract',
             'testimonial' => 'The scalp-first diagnosis helped me understand the real cause of my thinning and the results followed.',
-            'subtitle' => 'Case Studies',
+            'subtitle' => eurohairlab_public_ui_text('Case Studies', 'Studi kasus'),
             'sub_description' => 'A structured plan makes it easier to track progress and maintain momentum.',
         ],
         [
@@ -151,7 +170,7 @@ if ($result_cards === []) {
             'card_title' => 'Female, 40s',
             'short_description' => '4 Months on Extract',
             'testimonial' => 'My shedding reduced gradually and the density along my hairline started to look fuller.',
-            'subtitle' => 'Case Studies',
+            'subtitle' => eurohairlab_public_ui_text('Case Studies', 'Studi kasus'),
             'sub_description' => 'Visible changes are supported by ongoing scalp correction and program adjustment.',
         ],
     ];
@@ -189,7 +208,7 @@ $result_count = count($result_cards);
   <section class="bg-white px-4 py-14 sm:px-6 lg:px-10 lg:py-16">
     <div class="mx-auto w-full max-w-[90rem]">
       <div class="reveal border-b border-eh-sand-num pb-4">
-        <p class="font-sans text-[14px] font-light uppercase leading-[120%] tracking-normal text-eh-ink"><?php echo esc_html(sprintf(__('%d Results', 'eurohairlab'), $result_count)); ?></p>
+        <p class="font-sans text-[14px] font-light uppercase leading-[120%] tracking-normal text-eh-ink"><?php echo esc_html(sprintf($results_ui['results_count'], $result_count)); ?></p>
       </div>
 
       <div class="mt-8 grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
@@ -217,26 +236,26 @@ $result_count = count($result_cards);
                   <figure class="relative h-full">
                     <img
                       src="<?php echo esc_url($card['before']); ?>"
-                      alt="<?php echo esc_attr(sprintf(__('Before — %s', 'eurohairlab'), $card['card_title'])); ?>"
+                      alt="<?php echo esc_attr(sprintf($results_ui['before_alt'], $card['card_title'])); ?>"
                       class="h-full w-full object-cover object-center"
                       width="420"
                       height="560"
                       loading="<?php echo $index < 6 ? 'eager' : 'lazy'; ?>"
                       decoding="async"
                     >
-                    <figcaption class="pointer-events-none absolute bottom-4 left-4 font-display text-2xl font-bold uppercase leading-none text-white"><?php echo esc_html__('Before', 'eurohairlab'); ?></figcaption>
+                    <figcaption class="pointer-events-none absolute bottom-4 left-4 font-display text-2xl font-bold uppercase leading-none text-white"><?php echo esc_html($results_ui['before']); ?></figcaption>
                   </figure>
                   <figure class="relative h-full">
                     <img
                       src="<?php echo esc_url($card['after']); ?>"
-                      alt="<?php echo esc_attr(sprintf(__('After — %s', 'eurohairlab'), $card['card_title'])); ?>"
+                      alt="<?php echo esc_attr(sprintf($results_ui['after_alt'], $card['card_title'])); ?>"
                       class="h-full w-full object-cover object-center"
                       width="420"
                       height="560"
                       loading="<?php echo $index < 6 ? 'eager' : 'lazy'; ?>"
                       decoding="async"
                     >
-                    <figcaption class="pointer-events-none absolute bottom-4 left-4 font-display text-2xl font-bold uppercase leading-none text-white"><?php echo esc_html__('After', 'eurohairlab'); ?></figcaption>
+                    <figcaption class="pointer-events-none absolute bottom-4 left-4 font-display text-2xl font-bold uppercase leading-none text-white"><?php echo esc_html($results_ui['after']); ?></figcaption>
                   </figure>
                 </div>
               </div>
@@ -247,7 +266,7 @@ $result_count = count($result_cards);
                     <p class="mt-2 font-futuraBk text-[14px] font-normal leading-[1] text-eh-ink"><?php echo esc_html($card['short_description']); ?></p>
                   <?php endif; ?>
                 </div>
-                <span class="mt-4 inline-block font-sans text-xs font-bold uppercase leading-[120%] text-eh-sand-num">See More</span>
+                <span class="mt-4 inline-block font-sans text-xs font-bold uppercase leading-[120%] text-eh-sand-num"><?php echo esc_html($results_ui['see_more']); ?></span>
               </div>
             </button>
           </article>
@@ -263,19 +282,19 @@ $result_count = count($result_cards);
           <div class="grid h-full gap-0 overflow-hidden lg:grid-cols-[minmax(0,1fr)_22rem]">
             <div class="relative grid h-fit lg:h-full grid-cols-2 bg-[#f3f1ee] sm:h-[28rem] lg:h-[31rem]">
               <figure class="relative h-fit lg:h-full">
-                <img id="results-modal-before" src="" alt="Before result" class="h-fit lg:h-full w-full object-cover object-center">
-                <figcaption class="absolute bottom-4 left-4 font-display text-2xl font-bold uppercase leading-none text-white">Before</figcaption>
+                <img id="results-modal-before" src="" alt="<?php echo esc_attr($results_ui['before_result_alt']); ?>" class="h-fit lg:h-full w-full object-cover object-center">
+                <figcaption class="absolute bottom-4 left-4 font-display text-2xl font-bold uppercase leading-none text-white"><?php echo esc_html($results_ui['before']); ?></figcaption>
               </figure>
               <figure class="relative h-fit lg:h-full">
-                <img id="results-modal-after" src="" alt="After result" class="h-fit lg:h-full w-full object-cover object-center">
-                <figcaption class="absolute bottom-4 left-4 font-display text-2xl font-bold uppercase leading-none text-white">After</figcaption>
+                <img id="results-modal-after" src="" alt="<?php echo esc_attr($results_ui['after_result_alt']); ?>" class="h-fit lg:h-full w-full object-cover object-center">
+                <figcaption class="absolute bottom-4 left-4 font-display text-2xl font-bold uppercase leading-none text-white"><?php echo esc_html($results_ui['after']); ?></figcaption>
               </figure>
-              <button type="button" id="results-modal-image-prev" class="absolute left-4 top-1/2 flex h-14 w-14 -translate-y-1/2 items-center justify-center text-white/90 transition hover:text-white disabled:pointer-events-none disabled:opacity-35" aria-label="<?php echo esc_attr__('Previous images in this result', 'eurohairlab'); ?>">
+              <button type="button" id="results-modal-image-prev" class="absolute left-4 top-1/2 flex h-14 w-14 -translate-y-1/2 items-center justify-center text-white/90 transition hover:text-white disabled:pointer-events-none disabled:opacity-35" aria-label="<?php echo esc_attr($results_ui['prev_images']); ?>">
                 <svg class="h-10 w-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                   <path d="M15 5 8 12l7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
                 </svg>
               </button>
-              <button type="button" id="results-modal-image-next" class="absolute right-4 top-1/2 flex h-14 w-14 -translate-y-1/2 items-center justify-center text-white/90 transition hover:text-white disabled:pointer-events-none disabled:opacity-35" aria-label="<?php echo esc_attr__('Next images in this result', 'eurohairlab'); ?>">
+              <button type="button" id="results-modal-image-next" class="absolute right-4 top-1/2 flex h-14 w-14 -translate-y-1/2 items-center justify-center text-white/90 transition hover:text-white disabled:pointer-events-none disabled:opacity-35" aria-label="<?php echo esc_attr($results_ui['next_images']); ?>">
                 <svg class="h-10 w-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                   <path d="m9 5 7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
                 </svg>
@@ -294,9 +313,9 @@ $result_count = count($result_cards);
         </div>
 
         <div class="flex items-center justify-between border-t border-eh-ink/10 px-5 py-4 sm:px-6">
-          <button type="button" id="results-modal-prev" class="font-futuraBk text-[14px] font-normal leading-[1] text-eh-ink transition hover:text-eh-coral"><?php echo esc_html__('Previous', 'eurohairlab'); ?></button>
-          <button type="button" id="results-modal-close" class="font-futuraBk text-[14px] font-normal leading-[1] text-eh-ink transition hover:text-eh-coral"><?php echo esc_html__('Close', 'eurohairlab'); ?></button>
-          <button type="button" id="results-modal-next" class="font-futuraBk text-[14px] font-normal leading-[1] text-eh-ink transition hover:text-eh-coral"><?php echo esc_html__('Next', 'eurohairlab'); ?></button>
+          <button type="button" id="results-modal-prev" class="font-futuraBk text-[14px] font-normal leading-[1] text-eh-ink transition hover:text-eh-coral"><?php echo esc_html($results_ui['prev']); ?></button>
+          <button type="button" id="results-modal-close" class="font-futuraBk text-[14px] font-normal leading-[1] text-eh-ink transition hover:text-eh-coral"><?php echo esc_html($results_ui['close']); ?></button>
+          <button type="button" id="results-modal-next" class="font-futuraBk text-[14px] font-normal leading-[1] text-eh-ink transition hover:text-eh-coral"><?php echo esc_html($results_ui['next']); ?></button>
         </div>
       </div>
     </div>

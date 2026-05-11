@@ -240,6 +240,16 @@ function eurohairlab_public_ui_text(string $english, string $indonesian): string
     return eurohairlab_get_public_lang() === 'id' ? $indonesian : $english;
 }
 
+/**
+ * Results cards / modal: translate legacy English category label from seeds and empty fallbacks.
+ */
+function eurohairlab_results_localize_case_studies_label(string $subtitle): string
+{
+    return trim($subtitle) === 'Case Studies'
+        ? eurohairlab_public_ui_text('Case Studies', 'Studi kasus')
+        : $subtitle;
+}
+
 function eurohairlab_get_primary_nav_items(): array
 {
     $t = static fn(string $en, string $id): string => eurohairlab_public_ui_text($en, $id);
