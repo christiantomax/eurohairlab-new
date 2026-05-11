@@ -164,6 +164,111 @@ function eurohairlab_get_assessment_content_defaults(): array
     ];
 }
 
+/**
+ * When public language is ID, map known English seed / default copy to Indonesian.
+ * Option `value` fields are not translated here (submissions stay on English canonical values).
+ *
+ * @return array<string, string>
+ */
+function eurohairlab_get_assessment_ui_en_to_id_map(): array
+{
+    return [
+        'Exit' => 'Keluar',
+        'Online Hair Assessment' => 'Penilaian rambut online',
+        'This 1-minute assessment is the first step toward a personalized treatment plan and consultation.' => 'Penilaian singkat ini adalah langkah pertama menuju rencana perawatan dan konsultasi yang dipersonalisasi.',
+        'At EUROHAIRLAB, we believe in clinically proven scalp care for everyone. Through this Hair Assessment, you can share your concerns and goals with us. Every patient journey begins with a complete scalp diagnostic session before any treatment is recommended.' => 'Di EUROHAIRLAB, kami percaya pada perawatan kulit kepala yang terbukti secara klinis untuk semua orang. Melalui penilaian rambut ini, Anda dapat berbagi kekhawatiran dan tujuan Anda dengan kami. Setiap perjalanan pasien dimulai dengan sesi diagnosis kulit kepala yang lengkap sebelum perawatan direkomendasikan.',
+        'Developed based on EUROHAIRLAB&apos;s clinical diagnostic methodology. Your result will be delivered directly to your WhatsApp.' => 'Dikembangkan berdasarkan metodologi diagnosis klinis EUROHAIRLAB. Hasil Anda akan dikirim langsung ke WhatsApp Anda.',
+        "Developed based on EUROHAIRLAB's clinical diagnostic methodology. Your result will be delivered directly to your WhatsApp." => 'Dikembangkan berdasarkan metodologi diagnosis klinis EUROHAIRLAB. Hasil Anda akan dikirim langsung ke WhatsApp Anda.',
+        'This short assessment is the first step toward understanding your scalp condition and building a treatment plan that is right for you. Share your concerns and goals with us. Every recommendation at EUROHAIRLAB begins with a proper clinical assessment, never before we fully understand your condition.' => 'Penilaian singkat ini adalah langkah pertama untuk memahami kondisi kulit kepala Anda dan menyusun rencana perawatan yang tepat. Bagikan kekhawatiran dan tujuan Anda dengan kami. Setiap rekomendasi di EUROHAIRLAB berawal dari penilaian klinis yang memadai, bukan sebelum kami memahami kondisi Anda sepenuhnya.',
+        'Start Your Assessment Now' => 'Mulai penilaian sekarang',
+        'Which hair or scalp change are you noticing the most?' => 'Perubahan rambut atau kulit kepala mana yang paling Anda rasakan?',
+        'The pattern of change helps us identify the type of hair concern and the area that needs closer analysis.' => 'Pola perubahan membantu kami mengidentifikasi jenis masalah rambut dan area yang perlu dianalisis lebih dekat.',
+        'Hairline Receding' => 'Garisan rambut mundur',
+        'Crown Thinning' => 'Rontok di mahkota kepala',
+        'Diffuse Thinning' => 'Penipisan merata',
+        'Excessive Hair Fall' => 'Rambut rontok berlebihan',
+        'Scalp Concerns (Dandruff, Itchiness, Oily Scalp)' => 'Masalah kulit kepala (ketombe, gatal, kulit kepala berminyak)',
+        'I Want to Maintain Healthy Hair' => 'Saya ingin menjaga rambut tetap sehat',
+        'What is the biggest impact you are feeling?' => 'Dampak terbesar apa yang Anda rasakan?',
+        'The biggest impact helps us understand the urgency of the issue and the outcome that matters most to you.' => 'Dampak terbesar membantu kami memahami urgensi masalah dan hasil yang paling penting bagi Anda.',
+        'Lower Confidence' => 'Percaya diri menurun',
+        'Worried It Will Get Worse' => 'Khawatir akan semakin parah',
+        'Looking Older' => 'Terlihat lebih tua',
+        'Stressed About My Hair' => 'Stres karena kondisi rambut',
+        'I Want to Maintain My Current Condition' => 'Saya ingin mempertahankan kondisi saat ini',
+        'How long have you noticed this change?' => 'Sudah berapa lama Anda menyadari perubahan ini?',
+        'The duration helps us distinguish between temporary, progressive, and more chronic conditions.' => 'Durasi membantu kami membedakan kondisi sementara, progresif, dan yang lebih kronis.',
+        'Less Than 3 Months' => 'Kurang dari 3 bulan',
+        '3 to 6 Months' => '3 hingga 6 bulan',
+        '6 to 12 Months' => '6 hingga 12 bulan',
+        'More Than 1 Year' => 'Lebih dari 1 tahun',
+        'Not Sure' => 'Tidak yakin',
+        'Is there a family history of a similar condition?' => 'Apakah ada riwayat keluarga dengan kondisi serupa?',
+        'Family history helps us understand whether genetic factors may need to be considered in the evaluation.' => 'Riwayat keluarga membantu kami memahami apakah faktor genetik perlu dipertimbangkan dalam evaluasi.',
+        'Yes' => 'Ya',
+        'No' => 'Tidak',
+        'What have you tried so far?' => 'Apa saja yang sudah Anda coba sejauh ini?',
+        'We need to know what you have already tried so the next recommendation is more accurate and does not repeat what has been ineffective.' => 'Kami perlu mengetahui apa yang sudah Anda coba agar rekomendasi berikutnya lebih akurat dan tidak mengulang hal yang tidak efektif.',
+        'Nothing Yet' => 'Belum ada',
+        'Products / Serums' => 'Produk / serum',
+        'Clinic Treatments' => 'Perawatan di klinik',
+        'Doctor-Prescribed Medication' => 'Obat resep dokter',
+        'A Combination of Methods' => 'Kombinasi beberapa metode',
+        'Are you currently experiencing any of the following factors?' => 'Apakah Anda saat ini mengalami salah satu faktor berikut?',
+        'Potential trigger factors help us read possible internal and lifestyle-related causes affecting your hair and scalp.' => 'Faktor pemicu membantu kami memahami kemungkinan penyebab internal dan gaya hidup yang memengaruhi rambut dan kulit kepala Anda.',
+        'Prolonged Stress' => 'Stres berkepanjangan',
+        'Lack of Sleep' => 'Kurang tidur',
+        'Dieting / Weight Loss' => 'Diet / penurunan berat badan',
+        'Hormonal Changes' => 'Perubahan hormonal',
+        'None / Not Sure' => 'Tidak ada / tidak yakin',
+        'If left untreated, what worries you the most?' => 'Jika tidak ditangani, apa yang paling Anda khawatirkan?',
+        'Your biggest concern helps us understand which outcome you most want to prevent or improve.' => 'Kekhawatiran utama membantu kami memahami hasil yang paling ingin Anda cegah atau perbaiki.',
+        'The Thinning Area Will Spread' => 'Area penipisan akan meluas',
+        'I May Need a Transplant' => 'Saya mungkin perlu transplantasi',
+        'I Will Look Older' => 'Saya akan terlihat lebih tua',
+        'I Will Lose Confidence' => 'Saya akan kehilangan percaya diri',
+        "I Haven't Thought About It Yet" => 'Saya belum memikirkannya',
+        'Have you had a consultation before?' => 'Apakah Anda pernah berkonsultasi sebelumnya?',
+        'Consultation history gives us context on your expectations and the approach you have already received.' => 'Riwayat konsultasi memberi konteks tentang harapan Anda dan pendekatan yang pernah Anda terima.',
+        'Never' => 'Belum pernah',
+        'Aesthetic Clinic' => 'Klinik estetika',
+        'Dermatologist' => 'Dermatolog',
+        'Hair Transplant Consultation' => 'Konsultasi transplantasi rambut',
+        'Multiple Approaches' => 'Beberapa pendekatan',
+        'If your condition improves, what result are you hoping for?' => 'Jika kondisi Anda membaik, hasil apa yang Anda harapkan?',
+        'Your target result helps us understand the outcome that would be most meaningful for you.' => 'Hasil yang Anda inginkan membantu kami memahami dampak yang paling bermakna bagi Anda.',
+        'Looking Younger' => 'Terlihat lebih muda',
+        'Feeling More Confident' => 'Lebih percaya diri',
+        'Less Stress About My Hair' => 'Kurang stres tentang rambut saya',
+        'Thicker and Healthier Hair' => 'Rambut lebih tebal dan sehat',
+        'Your Details' => 'Data Anda',
+        'Name' => 'Nama',
+        'WhatsApp Number (08xx / +62xx)' => 'Nomor WhatsApp (08xx / +62xx)',
+        'Gender' => 'Jenis kelamin',
+        'Select gender' => 'Pilih jenis kelamin',
+        'Birth date' => 'Tanggal lahir',
+        'Branch Office' => 'Cabang klinik',
+        'Select branch office' => 'Pilih cabang',
+        'I consent to the use of my data for hair and scalp health evaluation purposes in accordance with applicable personal data protection regulations.' => 'Saya menyetujui penggunaan data saya untuk evaluasi kesehatan rambut dan kulit kepala sesuai peraturan perlindungan data pribadi yang berlaku.',
+        'Submit' => 'Kirim',
+        'Thank You For Taking The Time To Complete Our Hair Assessment' => 'Terima kasih telah meluangkan waktu untuk menyelesaikan penilaian rambut kami',
+        'Thank you for sharing your concerns with us. To build a treatment plan that is genuinely personalized to your condition, we would like to understand it in more detail. Book your complimentary 15-minute consultation below.' => 'Terima kasih telah berbagi kekhawatiran Anda dengan kami. Untuk menyusun rencana perawatan yang benar-benar disesuaikan dengan kondisi Anda, kami ingin memahaminya lebih detail. Jadwalkan konsultasi gratis 15 menit Anda di bawah ini.',
+        'Thank you for sharing your concerns with us. To build a treatment plan that is genuinely personalised to your condition, we would like to understand it in more detail. Book your complimentary 15-minute consultation below.' => 'Terima kasih telah berbagi kekhawatiran Anda dengan kami. Untuk menyusun rencana perawatan yang benar-benar disesuaikan dengan kondisi Anda, kami ingin memahaminya lebih detail. Jadwalkan konsultasi gratis 15 menit Anda di bawah ini.',
+        'WhatsApp Consultation' => 'Konsultasi WhatsApp',
+    ];
+}
+
+function eurohairlab_assessment_localize_seed_text(string $text): string
+{
+    if ($text === '' || !function_exists('eurohairlab_get_public_lang') || eurohairlab_get_public_lang() !== 'id') {
+        return $text;
+    }
+
+    $map = eurohairlab_get_assessment_ui_en_to_id_map();
+
+    return $map[$text] ?? $text;
+}
+
 add_filter('rwmb_meta_boxes', 'eurohairlab_assessment_register_meta_boxes');
 
 function eurohairlab_assessment_register_meta_boxes($meta_boxes)

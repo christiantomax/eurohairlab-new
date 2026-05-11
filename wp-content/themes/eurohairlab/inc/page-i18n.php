@@ -25,6 +25,11 @@ function eurohairlab_rwmb_i18n_post_types(): array
  */
 function eurohairlab_get_public_lang(): string
 {
+    $override = apply_filters('eurohairlab_public_lang_override', null);
+    if (is_string($override) && in_array($override, ['en', 'id'], true)) {
+        return $override;
+    }
+
     if (isset($_GET['lang'])) {
         $g = sanitize_key((string) wp_unslash($_GET['lang']));
         if (in_array($g, ['en', 'id'], true)) {

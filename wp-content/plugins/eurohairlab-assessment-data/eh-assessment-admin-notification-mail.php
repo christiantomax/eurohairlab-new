@@ -3,8 +3,10 @@
  * Email when a public Online Assessment submission is stored.
  *
  * Submission flow: one notification to the assigned Hair Specialist agent when their email is valid;
- * otherwise no email is sent. Mail transport: wp-config.php constants MAIL_* (and optional EMAIL_ADMIN
- * for {@see eh_assessment_send_new_lead_admin_notification()} only).
+ * otherwise no email is sent. When the WP_ENV constant equals "local", the same message is sent to
+ * EMAIL_ADMIN only (via {@see eh_assessment_admin_new_lead_recipient()}) so local testing does not
+ * mail real agents. Mail transport: wp-config.php constants MAIL_* (and optional EMAIL_ADMIN
+ * for {@see eh_assessment_send_new_lead_admin_notification()} and local specialist redirect).
  */
 
 declare(strict_types=1);
@@ -44,6 +46,15 @@ function eh_assessment_admin_new_lead_recipient(): string
     }
 
     return $raw;
+}
+
+function eh_assessment_wp_env_is_local(): bool
+{
+    if (!defined('WP_ENV')) {
+        return false;
+    }
+
+    return strtolower(trim((string) constant('WP_ENV'))) === 'local';
 }
 
 function eh_assessment_format_submission_notice_footer_datetime(): string
@@ -230,7 +241,8 @@ function eh_assessment_build_new_lead_admin_email_html(
     $tipeStr = $tipeNum > 0 ? (string) $tipeNum : '-';
     $strategy = trim((string) ($sub['strategy'] ?? ''));
 
-    $pdfUrl = eh_assessment_get_public_report_download_url_for_json($submission_id, $masked_id);
+    $pdfLocale = eh_assessment_normalize_report_pdf_locale((string) ($sanitized['submission']['report_pdf_locale'] ?? 'id'));
+    $pdfUrl = eh_assessment_get_public_report_download_url_for_json($submission_id, $masked_id, $pdfLocale);
 
     $qAnswer = static function (string $key, array $answersBlock): string {
         $block = is_array($answersBlock[$key] ?? null) ? $answersBlock[$key] : [];
@@ -447,10 +459,23 @@ function eh_assessment_send_new_lead_submission_notification(
     }
 
     $agentTo = trim((string) ($row['email'] ?? ''));
-    if ($agentTo === '' || !is_email($agentTo)) {
-        error_log('[eurohairlab-assessment][submission-mail] skip: agent email empty or invalid; no email. report=' . $masked_id);
+    $agentEmailValid = $agentTo !== '' && is_email($agentTo);
+    $localTest = eh_assessment_wp_env_is_local();
 
-        return;
+    if ($localTest) {
+        $to = eh_assessment_admin_new_lead_recipient();
+        if ($to === '') {
+            error_log('[eurohairlab-assessment][submission-mail] skip: WP_ENV=local but EMAIL_ADMIN missing or invalid; no email. report=' . $masked_id);
+
+            return;
+        }
+    } else {
+        if (!$agentEmailValid) {
+            error_log('[eurohairlab-assessment][submission-mail] skip: agent email empty or invalid; no email. report=' . $masked_id);
+
+            return;
+        }
+        $to = $agentTo;
     }
 
     if (!apply_filters('eh_assessment_send_new_lead_hair_specialist_email', true, $masked_id, $submission_id, $sanitized)) {
@@ -471,10 +496,25 @@ function eh_assessment_send_new_lead_submission_notification(
         '[EUROHAIRLAB] New lead assigned to you — Online Assessment (Report ID: %s)',
         $masked_id
     );
+    if ($localTest) {
+        $subject = '[LOCAL TEST] ' . $subject;
+    }
     $agentLabel = trim((string) ($row['name'] ?? ''));
-    $extraLog = $agentLabel !== '' ? 'agent=' . $agentLabel : '';
+    $extraLogParts = [];
+    if ($agentLabel !== '') {
+        $extraLogParts[] = 'agent=' . $agentLabel;
+    }
+    if ($localTest) {
+        $extraLogParts[] = 'local_redirect_to=EMAIL_ADMIN';
+        if ($agentEmailValid) {
+            $extraLogParts[] = 'would_send_to=' . $agentTo;
+        } else {
+            $extraLogParts[] = 'agent_email_invalid_skipped_in_prod';
+        }
+    }
+    $extraLog = implode(' ', $extraLogParts);
 
-    eh_assessment_wp_mail_new_lead_html($agentTo, $subject, $message, 'specialist-mail', $masked_id, $extraLog);
+    eh_assessment_wp_mail_new_lead_html($to, $subject, $message, 'specialist-mail', $masked_id, $extraLog);
 }
 
 /**
@@ -523,7 +563,8 @@ function eh_assessment_send_new_lead_admin_notification(
 }
 
 /**
- * Email only the Hair Specialist agent (no EMAIL_ADMIN fallback). Prefer {@see eh_assessment_send_new_lead_submission_notification()} for submission saves.
+ * Email the Hair Specialist agent. When WP_ENV is "local", sends to EMAIL_ADMIN instead (same as
+ * {@see eh_assessment_send_new_lead_submission_notification()}). Prefer that function for submission saves.
  *
  * @param array<string, mixed> $sanitized
  */
@@ -560,11 +601,24 @@ function eh_assessment_send_new_lead_hair_specialist_notification(
         return;
     }
 
-    $to = trim((string) ($row['email'] ?? ''));
-    if ($to === '' || !is_email($to)) {
-        error_log('[eurohairlab-assessment][specialist-mail] skip: agent email empty or invalid. report=' . $masked_id);
+    $agentTo = trim((string) ($row['email'] ?? ''));
+    $agentEmailValid = $agentTo !== '' && is_email($agentTo);
+    $localTest = eh_assessment_wp_env_is_local();
 
-        return;
+    if ($localTest) {
+        $to = eh_assessment_admin_new_lead_recipient();
+        if ($to === '') {
+            error_log('[eurohairlab-assessment][specialist-mail] skip: WP_ENV=local but EMAIL_ADMIN missing or invalid. report=' . $masked_id);
+
+            return;
+        }
+    } else {
+        if (!$agentEmailValid) {
+            error_log('[eurohairlab-assessment][specialist-mail] skip: agent email empty or invalid. report=' . $masked_id);
+
+            return;
+        }
+        $to = $agentTo;
     }
 
     $agentLabel = trim((string) ($row['name'] ?? ''));
@@ -572,6 +626,9 @@ function eh_assessment_send_new_lead_hair_specialist_notification(
         '[EUROHAIRLAB] New lead assigned to you — Online Assessment (Report ID: %s)',
         $masked_id
     );
+    if ($localTest) {
+        $subject = '[LOCAL TEST] ' . $subject;
+    }
 
     $message = eh_assessment_build_new_lead_admin_email_html(
         $sanitized,
@@ -581,7 +638,19 @@ function eh_assessment_send_new_lead_hair_specialist_notification(
         $submission_id
     );
 
-    $extraLog = $agentLabel !== '' ? 'agent=' . $agentLabel : '';
+    $extraLogParts = [];
+    if ($agentLabel !== '') {
+        $extraLogParts[] = 'agent=' . $agentLabel;
+    }
+    if ($localTest) {
+        $extraLogParts[] = 'local_redirect_to=EMAIL_ADMIN';
+        if ($agentEmailValid) {
+            $extraLogParts[] = 'would_send_to=' . $agentTo;
+        } else {
+            $extraLogParts[] = 'agent_email_invalid_skipped_in_prod';
+        }
+    }
+    $extraLog = implode(' ', $extraLogParts);
     eh_assessment_wp_mail_new_lead_html($to, $subject, $message, 'specialist-mail', $masked_id, $extraLog);
 }
 

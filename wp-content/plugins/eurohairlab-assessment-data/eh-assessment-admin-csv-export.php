@@ -133,7 +133,7 @@ function eh_assessment_export_csv_assessment_submissions(): void
     }
     if ($search_term !== '') {
         $like = '%' . $wpdb->esc_like($search_term) . '%';
-        $where_clauses[] = '(CAST(s.id AS CHAR) LIKE %s OR s.masked_id LIKE %s OR s.respondent_name LIKE %s OR s.respondent_whatsapp LIKE %s OR s.respondent_gender LIKE %s OR s.status LIKE %s OR bo.cekat_name LIKE %s OR bo.display_name LIKE %s OR s.submitted_at LIKE %s OR s.updated_at LIKE %s OR s.cekat_name LIKE %s OR s.cekat_masking_id LIKE %s OR CAST(s.respondent_birthdate AS CHAR) LIKE %s OR s.agent_name LIKE %s OR s.lead_source LIKE %s OR s.computed_condition_title LIKE %s OR s.computed_band LIKE %s OR CAST(s.computed_report_type AS CHAR) LIKE %s OR CAST(s.computed_score AS CHAR) LIKE %s OR s.computed_clinical_warnings LIKE %s OR s.computed_communication_strategy LIKE %s)';
+        $where_clauses[] = '(CAST(s.id AS CHAR) LIKE %s OR s.masked_id LIKE %s OR s.respondent_name LIKE %s OR s.respondent_whatsapp LIKE %s OR s.respondent_gender LIKE %s OR s.status LIKE %s OR bo.cekat_name LIKE %s OR bo.display_name LIKE %s OR s.submitted_at LIKE %s OR s.updated_at LIKE %s OR s.cekat_name LIKE %s OR s.cekat_masking_id LIKE %s OR CAST(s.respondent_birthdate AS CHAR) LIKE %s OR s.agent_name LIKE %s OR s.lead_source LIKE %s OR s.report_pdf_locale LIKE %s OR s.computed_condition_title LIKE %s OR s.computed_band LIKE %s OR CAST(s.computed_report_type AS CHAR) LIKE %s OR CAST(s.computed_score AS CHAR) LIKE %s OR s.computed_clinical_warnings LIKE %s OR s.computed_communication_strategy LIKE %s)';
         array_push(
             $where_values,
             $like,
@@ -171,7 +171,7 @@ function eh_assessment_export_csv_assessment_submissions(): void
     $where_sql = $where_clauses ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
     $branchOutletLabel = eh_assessment_branch_outlet_label_sql('bo');
     $sql = "SELECT s.id, s.masked_id, s.status, s.respondent_name, s.respondent_whatsapp, s.respondent_gender,
-            CAST(s.respondent_birthdate AS CHAR) AS respondent_birthdate, s.agent_name, s.lead_source,
+            CAST(s.respondent_birthdate AS CHAR) AS respondent_birthdate, s.agent_name, s.lead_source, s.report_pdf_locale,
             s.computed_report_type, s.computed_score, s.computed_band, s.computed_condition_title, s.computed_patient_type,
             s.computed_communication_strategy, s.computed_maintenance_path, s.computed_clinical_warnings,
             CAST(s.submitted_at AS CHAR) AS submitted_at, CAST(s.updated_at AS CHAR) AS updated_at,
@@ -198,6 +198,7 @@ function eh_assessment_export_csv_assessment_submissions(): void
         'Birthdate',
         'Hair specialist',
         'Lead source',
+        'Report PDF language',
         'Rpt',
         'Score',
         'Band',
@@ -222,6 +223,7 @@ function eh_assessment_export_csv_assessment_submissions(): void
             (string) ($r['respondent_birthdate'] ?? ''),
             (string) ($r['agent_name'] ?? ''),
             (string) ($r['lead_source'] ?? ''),
+            (string) ($r['report_pdf_locale'] ?? 'id'),
             (string) ($r['computed_report_type'] ?? ''),
             (string) ($r['computed_score'] ?? ''),
             (string) ($r['computed_band'] ?? ''),

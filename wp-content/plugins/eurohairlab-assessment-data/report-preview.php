@@ -1868,7 +1868,11 @@ if (!function_exists('eh_assessment_resolve_report_preview_submission')) {
 
 if (!isset($report) || !is_array($report)) {
     $submission = eh_assessment_resolve_report_preview_submission();
-    $report = eh_assessment_build_report_data($submission);
+    $preview_locale = 'id';
+    if (isset($_GET['eh_rpt_lang'])) {
+        $preview_locale = eh_assessment_normalize_report_pdf_locale((string) wp_unslash($_GET['eh_rpt_lang']));
+    }
+    $report = eh_assessment_build_report_data($submission, $preview_locale);
 }
 
 eh_assessment_render_report_preview_html($report);

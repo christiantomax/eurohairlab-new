@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once get_template_directory() . '/inc/site-data.php';
 require_once get_template_directory() . '/inc/page-i18n.php';
+require_once get_template_directory() . '/inc/admin-sanitize-post-meta-request.php';
 require_once get_template_directory() . '/inc/metabox-category-i18n.php';
 require_once get_template_directory() . '/inc/domain-routing.php';
 require_once get_template_directory() . '/inc/metabox-home.php';
@@ -15,6 +16,7 @@ require_once get_template_directory() . '/inc/metabox-blog-list.php';
 require_once get_template_directory() . '/inc/metabox-blog-post.php';
 require_once get_template_directory() . '/inc/blog-permalinks.php';
 require_once get_template_directory() . '/inc/metabox-assessment.php';
+require_once get_template_directory() . '/inc/assessment-page-data.php';
 require_once get_template_directory() . '/inc/metabox-seo.php';
 require_once get_template_directory() . '/inc/cpt-eurohairlab-marketing.php';
 require_once get_template_directory() . '/inc/metabox-marketing-pages.php';

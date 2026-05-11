@@ -2,13 +2,18 @@
 
 declare(strict_types=1);
 
+$lang_args = isset($args) && is_array($args) ? $args : [];
+$raw_suffix = isset($lang_args['id_suffix']) ? (string) $lang_args['id_suffix'] : '';
+$safe_suffix = $raw_suffix !== '' ? preg_replace('/[^a-z0-9\-]/i', '', $raw_suffix) : '';
+$id_infix = $safe_suffix !== '' ? '-' . $safe_suffix : '';
+
 $current = function_exists('eurohairlab_get_public_lang') ? eurohairlab_get_public_lang() : 'en';
 $current = $current === 'id' ? 'id' : 'en';
 $trigger_label = strtoupper($current);
 $url_en = function_exists('eurohairlab_get_public_lang_switch_url') ? eurohairlab_get_public_lang_switch_url('en') : '#';
 $url_id = function_exists('eurohairlab_get_public_lang_switch_url') ? eurohairlab_get_public_lang_switch_url('id') : '#';
-$menu_id = 'eh-lang-select-menu';
-$trigger_id = 'eh-lang-select-trigger';
+$menu_id = 'eh-lang-select-menu' . $id_infix;
+$trigger_id = 'eh-lang-select-trigger' . $id_infix;
 ?>
 <div class="eh-lang-select shrink-0" data-eh-lang-select>
   <button

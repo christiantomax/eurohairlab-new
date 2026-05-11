@@ -3,7 +3,7 @@
  * Plugin Name: Eurohairlab Assessment Data
  * Description: Stores assessment submissions, branch office links, and related data in custom database tables.
  * Plugin URI: https://qoar.id
- * Version: 1.8.7
+ * Version: 1.8.9
  * Author: Qoar Creative Agency
  * Author URI: https://qoar.id
  */
@@ -22,7 +22,7 @@ require_once __DIR__ . '/eh-assessment-submission-logic.php';
 require_once __DIR__ . '/eh-assessment-cekat-webhook-i18n.php';
 require_once __DIR__ . '/eh-assessment-admin-notification-mail.php';
 
-const EH_ASSESSMENT_DATA_VERSION = '1.8.7';
+const EH_ASSESSMENT_DATA_VERSION = '1.8.9';
 const EH_ASSESSMENT_REPORT_PDF_MASKING_ID_MAX_LENGTH = 64;
 const EH_ASSESSMENT_AGENT_MASKING_ID_MAX_LENGTH = 64;
 const EH_ASSESSMENT_AGENT_CODE_MAX_LENGTH = 64;
@@ -467,7 +467,97 @@ function eh_assessment_report_pdf_template_row_from_post(): array
         'title_medical_notes' => $str('rpt_title_medical_notes', 255),
         'body_medical_notes' => $html('rpt_body_medical_notes'),
         'description_medical_notes' => $html('rpt_description_medical_notes'),
+        'report_header_title_en' => $str('rpt_report_header_title_en', 255),
+        'subtitle_en' => $str('rpt_subtitle_en', 255),
+        'greeting_description_en' => $html('rpt_greeting_description_en'),
+        'diagnosis_name_en' => eh_assessment_report_pdf_template_normalize_diagnosis_name_plain(
+            isset($_POST['rpt_diagnosis_name_en']) ? wp_unslash((string) $_POST['rpt_diagnosis_name_en']) : ''
+        ),
+        'diagnosis_name_detail_en' => $str('rpt_diagnosis_name_detail_en', 255),
+        'title_condition_explanation_en' => $str('rpt_title_condition_explanation_en', 255),
+        'description_condition_explanation_en' => $html('rpt_description_condition_explanation_en'),
+        'title_clinical_knowledge_en' => $str('rpt_title_clinical_knowledge_en', 255),
+        'subtitle_clinical_knowledge_en' => $str('rpt_subtitle_clinical_knowledge_en', 255),
+        'description_clinical_knowledge_en' => $html('rpt_description_clinical_knowledge_en'),
+        'title_evaluation_urgency_en' => $str('rpt_title_evaluation_urgency_en', 255),
+        'description_evaluation_urgency_en' => $html('rpt_description_evaluation_urgency_en'),
+        'title_treatment_journey_en' => $str('rpt_title_treatment_journey_en', 255),
+        'description_treatment_journey_en' => $html('rpt_description_treatment_journey_en'),
+        'title_recommendation_approach_en' => $str('rpt_title_recommendation_approach_en', 255),
+        'description_recommendation_approach_en' => $html('rpt_description_recommendation_approach_en'),
+        'detail_recommendation_approach_en' => $html('rpt_detail_recommendation_approach_en'),
+        'bottom_description_recommendation_approach_en' => $html('rpt_bottom_description_recommendation_approach_en'),
+        'title_next_steps_en' => $str('rpt_title_next_steps_en', 255),
+        'description_next_steps_en' => $html('rpt_description_next_steps_en'),
+        'title_medical_notes_en' => $str('rpt_title_medical_notes_en', 255),
+        'body_medical_notes_en' => $html('rpt_body_medical_notes_en'),
+        'description_medical_notes_en' => $html('rpt_description_medical_notes_en'),
     ];
+}
+
+/**
+ * @return 'id'|'en'
+ */
+function eh_assessment_normalize_report_pdf_locale(string $raw): string
+{
+    $raw = strtolower(trim(sanitize_key($raw)));
+
+    return $raw === 'en' ? 'en' : 'id';
+}
+
+/**
+ * Merge English template columns into the canonical keys used by {@see eh_assessment_build_report_data()} / {@see report-preview.php}.
+ *
+ * @param array<string, mixed> $row
+ * @return array<string, mixed>
+ */
+function eh_assessment_report_pdf_template_row_apply_locale(array $row, string $locale): array
+{
+    $locale = eh_assessment_normalize_report_pdf_locale($locale);
+    if ($locale !== 'en' || !eh_assessment_report_pdf_template_table_has_column('report_header_title_en')) {
+        return $row;
+    }
+
+    $pairs = [
+        ['report_header_title', 'report_header_title_en'],
+        ['subtitle', 'subtitle_en'],
+        ['greeting_description', 'greeting_description_en'],
+        ['diagnosis_name', 'diagnosis_name_en'],
+        ['diagnosis_name_detail', 'diagnosis_name_detail_en'],
+        ['title_condition_explanation', 'title_condition_explanation_en'],
+        ['description_condition_explanation', 'description_condition_explanation_en'],
+        ['title_clinical_knowledge', 'title_clinical_knowledge_en'],
+        ['subtitle_clinical_knowledge', 'subtitle_clinical_knowledge_en'],
+        ['description_clinical_knowledge', 'description_clinical_knowledge_en'],
+        ['title_evaluation_urgency', 'title_evaluation_urgency_en'],
+        ['description_evaluation_urgency', 'description_evaluation_urgency_en'],
+        ['title_treatment_journey', 'title_treatment_journey_en'],
+        ['description_treatment_journey', 'description_treatment_journey_en'],
+        ['title_recommendation_approach', 'title_recommendation_approach_en'],
+        ['description_recommendation_approach', 'description_recommendation_approach_en'],
+        ['detail_recommendation_approach', 'detail_recommendation_approach_en'],
+        ['bottom_description_recommendation_approach', 'bottom_description_recommendation_approach_en'],
+        ['title_next_steps', 'title_next_steps_en'],
+        ['description_next_steps', 'description_next_steps_en'],
+        ['title_medical_notes', 'title_medical_notes_en'],
+        ['body_medical_notes', 'body_medical_notes_en'],
+        ['description_medical_notes', 'description_medical_notes_en'],
+    ];
+
+    $out = $row;
+    foreach ($pairs as [$base, $enKey]) {
+        if (!array_key_exists($enKey, $row)) {
+            continue;
+        }
+        $candidate = $row[$enKey];
+        $text = is_string($candidate) ? $candidate : (is_numeric($candidate) ? (string) $candidate : '');
+        if (trim($text) === '') {
+            continue;
+        }
+        $out[$base] = $text;
+    }
+
+    return $out;
 }
 
 function eh_assessment_normalize_agent_masking_id(string $raw): string
@@ -981,6 +1071,14 @@ function eh_assessment_payload_public_shape_for_display(array $payload, array $s
     $submission_out['lead_source'] = $lead_db !== ''
         ? eh_assessment_normalize_lead_source($lead_db)
         : eh_assessment_lead_source_from_submission($submission_in);
+
+    $report_pdf_locale = 'id';
+    if (isset($submission_in['report_pdf_locale'])) {
+        $report_pdf_locale = eh_assessment_normalize_report_pdf_locale((string) $submission_in['report_pdf_locale']);
+    } elseif (isset($submission_row['report_pdf_locale']) && (string) $submission_row['report_pdf_locale'] !== '') {
+        $report_pdf_locale = eh_assessment_normalize_report_pdf_locale((string) $submission_row['report_pdf_locale']);
+    }
+    $submission_out['report_pdf_locale'] = $report_pdf_locale;
 
     return [
         'submission' => $submission_out,
@@ -2353,6 +2451,7 @@ function eh_assessment_create_tables(): void
         cekat_image_url TEXT NULL,
         cekat_type VARCHAR(32) NULL,
         cekat_ai_agent_json LONGTEXT NULL,
+        report_pdf_locale VARCHAR(8) NOT NULL DEFAULT 'id',
         payload_json LONGTEXT NOT NULL,
         submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -2444,6 +2543,29 @@ function eh_assessment_create_tables(): void
         title_medical_notes VARCHAR(255) NOT NULL DEFAULT '',
         body_medical_notes LONGTEXT NULL,
         description_medical_notes LONGTEXT NULL,
+        report_header_title_en VARCHAR(255) NOT NULL DEFAULT '',
+        subtitle_en VARCHAR(255) NOT NULL DEFAULT '',
+        greeting_description_en LONGTEXT NULL,
+        diagnosis_name_en LONGTEXT NULL,
+        diagnosis_name_detail_en VARCHAR(255) NOT NULL DEFAULT '',
+        title_condition_explanation_en VARCHAR(255) NOT NULL DEFAULT '',
+        description_condition_explanation_en LONGTEXT NULL,
+        title_clinical_knowledge_en VARCHAR(255) NOT NULL DEFAULT '',
+        subtitle_clinical_knowledge_en VARCHAR(255) NOT NULL DEFAULT '',
+        description_clinical_knowledge_en LONGTEXT NULL,
+        title_evaluation_urgency_en VARCHAR(255) NOT NULL DEFAULT '',
+        description_evaluation_urgency_en LONGTEXT NULL,
+        title_treatment_journey_en VARCHAR(255) NOT NULL DEFAULT '',
+        description_treatment_journey_en LONGTEXT NULL,
+        title_recommendation_approach_en VARCHAR(255) NOT NULL DEFAULT '',
+        description_recommendation_approach_en LONGTEXT NULL,
+        detail_recommendation_approach_en LONGTEXT NULL,
+        bottom_description_recommendation_approach_en LONGTEXT NULL,
+        title_next_steps_en VARCHAR(255) NOT NULL DEFAULT '',
+        description_next_steps_en LONGTEXT NULL,
+        title_medical_notes_en VARCHAR(255) NOT NULL DEFAULT '',
+        body_medical_notes_en LONGTEXT NULL,
+        description_medical_notes_en LONGTEXT NULL,
         deleted_at DATETIME NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -3113,6 +3235,123 @@ function eh_assessment_migrate_v211_report_pdf_template_diagnosis_name_plain(): 
 }
 
 /**
+ * Report PDF template: English copy columns (pre-filled from Indonesian content for existing rows).
+ */
+function eh_assessment_migrate_v212_report_pdf_template_english_columns(): void
+{
+    if ((string) get_option('eh_assessment_v212_rpt_tpl_english_columns', '') === '1') {
+        return;
+    }
+
+    global $wpdb;
+    $table = eh_assessment_report_pdf_template_table_name();
+    $found = (string) $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table));
+    if ($found !== $table) {
+        update_option('eh_assessment_v212_rpt_tpl_english_columns', '1');
+
+        return;
+    }
+
+    $add = [
+        'report_header_title_en' => "VARCHAR(255) NOT NULL DEFAULT ''",
+        'subtitle_en' => "VARCHAR(255) NOT NULL DEFAULT ''",
+        'greeting_description_en' => 'LONGTEXT NULL',
+        'diagnosis_name_en' => 'LONGTEXT NULL',
+        'diagnosis_name_detail_en' => "VARCHAR(255) NOT NULL DEFAULT ''",
+        'title_condition_explanation_en' => "VARCHAR(255) NOT NULL DEFAULT ''",
+        'description_condition_explanation_en' => 'LONGTEXT NULL',
+        'title_clinical_knowledge_en' => "VARCHAR(255) NOT NULL DEFAULT ''",
+        'subtitle_clinical_knowledge_en' => "VARCHAR(255) NOT NULL DEFAULT ''",
+        'description_clinical_knowledge_en' => 'LONGTEXT NULL',
+        'title_evaluation_urgency_en' => "VARCHAR(255) NOT NULL DEFAULT ''",
+        'description_evaluation_urgency_en' => 'LONGTEXT NULL',
+        'title_treatment_journey_en' => "VARCHAR(255) NOT NULL DEFAULT ''",
+        'description_treatment_journey_en' => 'LONGTEXT NULL',
+        'title_recommendation_approach_en' => "VARCHAR(255) NOT NULL DEFAULT ''",
+        'description_recommendation_approach_en' => 'LONGTEXT NULL',
+        'detail_recommendation_approach_en' => 'LONGTEXT NULL',
+        'bottom_description_recommendation_approach_en' => 'LONGTEXT NULL',
+        'title_next_steps_en' => "VARCHAR(255) NOT NULL DEFAULT ''",
+        'description_next_steps_en' => 'LONGTEXT NULL',
+        'title_medical_notes_en' => "VARCHAR(255) NOT NULL DEFAULT ''",
+        'body_medical_notes_en' => 'LONGTEXT NULL',
+        'description_medical_notes_en' => 'LONGTEXT NULL',
+    ];
+
+    foreach ($add as $column => $ddl) {
+        if (!eh_assessment_report_pdf_template_table_has_column($column)) {
+            $wpdb->query("ALTER TABLE `{$table}` ADD COLUMN `{$column}` {$ddl}");
+        }
+    }
+
+    $pairs = [
+        ['report_header_title', 'report_header_title_en'],
+        ['subtitle', 'subtitle_en'],
+        ['greeting_description', 'greeting_description_en'],
+        ['diagnosis_name', 'diagnosis_name_en'],
+        ['diagnosis_name_detail', 'diagnosis_name_detail_en'],
+        ['title_condition_explanation', 'title_condition_explanation_en'],
+        ['description_condition_explanation', 'description_condition_explanation_en'],
+        ['title_clinical_knowledge', 'title_clinical_knowledge_en'],
+        ['subtitle_clinical_knowledge', 'subtitle_clinical_knowledge_en'],
+        ['description_clinical_knowledge', 'description_clinical_knowledge_en'],
+        ['title_evaluation_urgency', 'title_evaluation_urgency_en'],
+        ['description_evaluation_urgency', 'description_evaluation_urgency_en'],
+        ['title_treatment_journey', 'title_treatment_journey_en'],
+        ['description_treatment_journey', 'description_treatment_journey_en'],
+        ['title_recommendation_approach', 'title_recommendation_approach_en'],
+        ['description_recommendation_approach', 'description_recommendation_approach_en'],
+        ['detail_recommendation_approach', 'detail_recommendation_approach_en'],
+        ['bottom_description_recommendation_approach', 'bottom_description_recommendation_approach_en'],
+        ['title_next_steps', 'title_next_steps_en'],
+        ['description_next_steps', 'description_next_steps_en'],
+        ['title_medical_notes', 'title_medical_notes_en'],
+        ['body_medical_notes', 'body_medical_notes_en'],
+        ['description_medical_notes', 'description_medical_notes_en'],
+    ];
+
+    $assign = [];
+    foreach ($pairs as [$src, $dst]) {
+        if (!eh_assessment_report_pdf_template_table_has_column($src) || !eh_assessment_report_pdf_template_table_has_column($dst)) {
+            continue;
+        }
+        $assign[] = '`' . $dst . '` = `' . $src . '`';
+    }
+    if ($assign !== []) {
+        $wpdb->query('UPDATE `' . $table . '` SET ' . implode(', ', $assign));
+    }
+
+    update_option('eh_assessment_v212_rpt_tpl_english_columns', '1');
+}
+
+/**
+ * Assessment submission: store preferred report PDF language (id|en) for email/public links.
+ */
+function eh_assessment_migrate_v213_assessment_submission_report_pdf_locale(): void
+{
+    if ((string) get_option('eh_assessment_v213_submission_report_pdf_locale', '') === '1') {
+        return;
+    }
+
+    global $wpdb;
+    $table = eh_assessment_table_name();
+    $found = (string) $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table));
+    if ($found !== $table) {
+        update_option('eh_assessment_v213_submission_report_pdf_locale', '1');
+
+        return;
+    }
+
+    if (!eh_assessment_assessment_table_has_column('report_pdf_locale')) {
+        $wpdb->query(
+            "ALTER TABLE `{$table}` ADD COLUMN `report_pdf_locale` VARCHAR(8) NOT NULL DEFAULT 'id' AFTER `cekat_ai_agent_json`"
+        );
+    }
+
+    update_option('eh_assessment_v213_submission_report_pdf_locale', '1');
+}
+
+/**
  * Remove submission soft-delete: UNIQUE masked_id must stay global; trash rows blocked new IDs.
  */
 function eh_assessment_migrate_v179_drop_submission_deleted_at(): void
@@ -3321,6 +3560,7 @@ function eh_assessment_seed_sample_data(): void
             'cekat_image_url' => null,
             'cekat_type' => null,
             'cekat_ai_agent_json' => null,
+            'report_pdf_locale' => 'id',
             'payload_json' => eh_assessment_payload_json_for_storage($sanitized_seed),
             'submitted_at' => eh_assessment_current_mysql_time(),
             'updated_at' => eh_assessment_current_mysql_time(),
@@ -3352,6 +3592,8 @@ function eh_assessment_activate(): void
     eh_assessment_migrate_v205_report_pdf_template_diagnosis_name_detail();
     eh_assessment_migrate_v211_report_pdf_template_diagnosis_name_plain();
     eh_assessment_migrate_v202_report_pdf_template_seed_precon_defaults();
+    eh_assessment_migrate_v212_report_pdf_template_english_columns();
+    eh_assessment_migrate_v213_assessment_submission_report_pdf_locale();
     eh_assessment_migrate_v179_drop_submission_deleted_at();
     eh_assessment_migrate_v180_report_pdf_template_risk_untreated_image();
     eh_assessment_migrate_v181_branch_outlet_display_name();
@@ -3388,6 +3630,8 @@ function eh_assessment_maybe_upgrade(): void
     eh_assessment_migrate_v205_report_pdf_template_diagnosis_name_detail();
     eh_assessment_migrate_v211_report_pdf_template_diagnosis_name_plain();
     eh_assessment_migrate_v202_report_pdf_template_seed_precon_defaults();
+    eh_assessment_migrate_v212_report_pdf_template_english_columns();
+    eh_assessment_migrate_v213_assessment_submission_report_pdf_locale();
     eh_assessment_migrate_v179_drop_submission_deleted_at();
     eh_assessment_migrate_v181_branch_outlet_display_name();
     eh_assessment_migrate_v210_hair_specialist_daily_overview();
@@ -3630,11 +3874,13 @@ function eh_assessment_cekat_submission_saved_webhook_body_from_submission_id(in
         return new WP_Error('invalid_submission', 'Submission id is required.', ['status' => 400]);
     }
 
+    eh_assessment_migrate_v213_assessment_submission_report_pdf_locale();
+
     global $wpdb;
     $table = eh_assessment_table_name();
     $row = $wpdb->get_row(
         $wpdb->prepare(
-            "SELECT id, masked_id, branch_outlet_id, lead_source, payload_json FROM {$table} WHERE id = %d LIMIT 1",
+            "SELECT id, masked_id, branch_outlet_id, lead_source, payload_json, report_pdf_locale FROM {$table} WHERE id = %d LIMIT 1",
             $submission_id
         ),
         ARRAY_A
@@ -3651,6 +3897,10 @@ function eh_assessment_cekat_submission_saved_webhook_body_from_submission_id(in
     if (!isset($payload['submission']) || !is_array($payload['submission'])) {
         $payload['submission'] = [];
     }
+    $dbPdfLocale = isset($row['report_pdf_locale']) ? trim((string) $row['report_pdf_locale']) : '';
+    $payload['submission']['report_pdf_locale'] = $dbPdfLocale !== ''
+        ? eh_assessment_normalize_report_pdf_locale($dbPdfLocale)
+        : eh_assessment_normalize_report_pdf_locale((string) ($payload['submission']['report_pdf_locale'] ?? 'id'));
     if (!isset($payload['respondent']) || !is_array($payload['respondent'])) {
         $payload['respondent'] = [];
     }
@@ -3732,7 +3982,7 @@ function eh_assessment_submission_row_format_types(): array
         array_fill(0, 9, '%s'),
         ['%d', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d'],
         array_fill(0, 11, '%s'),
-        ['%s', '%s', '%s']
+        ['%s', '%s', '%s', '%s']
     );
 }
 
@@ -3817,6 +4067,14 @@ function eh_assessment_sanitize_payload(array $payload): array
     }
 
     $submission_out['lead_source'] = eh_assessment_lead_source_from_submission($submission);
+
+    $report_pdf_locale = 'id';
+    if (isset($submission['report_pdf_locale'])) {
+        $report_pdf_locale = eh_assessment_normalize_report_pdf_locale((string) $submission['report_pdf_locale']);
+    } elseif (isset($submission['report_language'])) {
+        $report_pdf_locale = eh_assessment_normalize_report_pdf_locale((string) $submission['report_language']);
+    }
+    $submission_out['report_pdf_locale'] = $report_pdf_locale;
 
     return [
         'submission' => $submission_out,
@@ -3911,7 +4169,7 @@ function eh_assessment_cekat_webhook_debug_log(string $message): void
  * Skips when {@see WEBHOOK_CEKAT_KEY} / {@see WEBHOOK_TO_CEKAT_KEY} is not defined or empty. Uses non-blocking HTTP.
  *
  * JSON body shape: `submission` (branch_office_name = branch display label, lead_source, report_id, clinical_profile,
- * score, band, patient_type, strategy, report_pdf_url, agent_id), `respondent`, `answers`.
+ * score, band, patient_type, strategy, report_pdf_locale, report_pdf_url, agent_id), `respondent`, `answers`.
  * `submission.agent_id` is always a string (possibly empty). After
  * {@see 'eh_assessment_cekat_submission_saved_webhook_body'}, `agent_id` is re-applied if missing.
  * `submission.branch_office_name` is always the branch display label (display_name when set, else Cekat inbox name),
@@ -3979,7 +4237,12 @@ function eh_assessment_cekat_submission_saved_webhook_body(
         'band' => (string) ($comp['computed_band'] ?? ''),
         'patient_type' => (int) ($comp['computed_patient_type'] ?? 0),
         'strategy' => (string) ($comp['computed_communication_strategy'] ?? ''),
-        'report_pdf_url' => eh_assessment_get_public_report_download_url_for_json($submission_id, $masked_id),
+        'report_pdf_locale' => eh_assessment_normalize_report_pdf_locale((string) ($submission_in['report_pdf_locale'] ?? 'id')),
+        'report_pdf_url' => eh_assessment_get_public_report_download_url_for_json(
+            $submission_id,
+            $masked_id,
+            eh_assessment_normalize_report_pdf_locale((string) ($submission_in['report_pdf_locale'] ?? 'id'))
+        ),
         'agent_id' => $agent_id_cekat,
     ];
 
@@ -4081,6 +4344,7 @@ function eh_assessment_insert_submission(array $payload)
     eh_assessment_migrate_v179_drop_submission_deleted_at();
     eh_assessment_migrate_v181_branch_outlet_display_name();
     eh_assessment_migrate_v210_hair_specialist_daily_overview();
+    eh_assessment_migrate_v213_assessment_submission_report_pdf_locale();
 
     if (!eh_assessment_public_submission_honeypot_clean($payload)) {
         return new WP_Error('spam_detected', 'Submission rejected.', ['status' => 400]);
@@ -4177,6 +4441,7 @@ function eh_assessment_insert_submission(array $payload)
         'cekat_image_url' => null,
         'cekat_type' => null,
         'cekat_ai_agent_json' => null,
+        'report_pdf_locale' => eh_assessment_normalize_report_pdf_locale((string) ($sanitized['submission']['report_pdf_locale'] ?? 'id')),
         'payload_json' => '',
         'submitted_at' => eh_assessment_current_mysql_time(),
         'updated_at' => eh_assessment_current_mysql_time(),
@@ -4732,17 +4997,19 @@ function eh_assessment_get_submission_for_public_report_download_by_masked_id(st
     return $submission;
 }
 
-function eh_assessment_get_report_download_url(int $submission_id): string
+function eh_assessment_get_report_download_url(int $submission_id, string $pdf_locale = 'id'): string
 {
-    $url = add_query_arg(
-        [
-            'action' => 'eh_download_assessment_report',
-            'submission_id' => $submission_id,
-        ],
-        admin_url('admin-post.php')
-    );
+    $pdf_locale = eh_assessment_normalize_report_pdf_locale($pdf_locale);
+    $args = [
+        'action' => 'eh_download_assessment_report',
+        'submission_id' => $submission_id,
+    ];
+    if ($pdf_locale === 'en') {
+        $args['eh_rpt_lang'] = 'en';
+    }
+    $url = add_query_arg($args, admin_url('admin-post.php'));
 
-    return wp_nonce_url($url, 'eh_download_assessment_report_' . $submission_id);
+    return wp_nonce_url($url, 'eh_download_assessment_report_' . $submission_id . '_' . $pdf_locale);
 }
 
 function eh_assessment_public_report_download_signature(string $masked_id, int $submission_id): string
@@ -4771,7 +5038,7 @@ function eh_assessment_public_report_download_signature_v2(string $masked_id): s
 /**
  * @param int $submission_id Kept for backward compatibility with callers; not embedded in v2 public URLs.
  */
-function eh_assessment_get_public_report_download_url(int $submission_id, string $masked_id): string
+function eh_assessment_get_public_report_download_url(int $submission_id, string $masked_id, string $pdf_locale = 'id'): string
 {
     $masked_id = trim($masked_id);
     if ($masked_id === '') {
@@ -4783,27 +5050,44 @@ function eh_assessment_get_public_report_download_url(int $submission_id, string
         return '';
     }
 
-    return add_query_arg(
-        [
-            'action' => 'eh_download_assessment_report_public',
-            'masked_id' => $canonical,
-            'sig' => eh_assessment_public_report_download_signature_v2($masked_id),
-        ],
-        admin_url('admin-post.php')
-    );
+    $pdf_locale = eh_assessment_normalize_report_pdf_locale($pdf_locale);
+    $args = [
+        'action' => 'eh_download_assessment_report_public',
+        'masked_id' => $canonical,
+        'sig' => eh_assessment_public_report_download_signature_v2($masked_id),
+    ];
+    if ($pdf_locale === 'en') {
+        $args['eh_rpt_lang'] = 'en';
+    }
+
+    return add_query_arg($args, admin_url('admin-post.php'));
+}
+
+/**
+ * Public PDF download locale: explicit {@see $_GET['eh_rpt_lang']} wins; otherwise use stored submission preference (default id).
+ *
+ * @param array<string, mixed> $submission Row including optional `report_pdf_locale`.
+ */
+function eh_assessment_public_report_download_resolve_locale(array $submission): string
+{
+    if (isset($_GET['eh_rpt_lang'])) {
+        return eh_assessment_normalize_report_pdf_locale((string) wp_unslash($_GET['eh_rpt_lang']));
+    }
+
+    return eh_assessment_normalize_report_pdf_locale((string) ($submission['report_pdf_locale'] ?? 'id'));
 }
 
 /**
  * Same report PDF URL as {@see eh_assessment_get_report_download_url()} but with plain `&` for JSON (no HTML entities).
  */
-function eh_assessment_get_report_download_url_for_json(int $submission_id): string
+function eh_assessment_get_report_download_url_for_json(int $submission_id, string $pdf_locale = 'id'): string
 {
     if ($submission_id <= 0) {
         return '';
     }
 
     $url = html_entity_decode(
-        eh_assessment_get_report_download_url($submission_id),
+        eh_assessment_get_report_download_url($submission_id, $pdf_locale),
         ENT_QUOTES | ENT_HTML5,
         'UTF-8'
     );
@@ -4811,9 +5095,9 @@ function eh_assessment_get_report_download_url_for_json(int $submission_id): str
     return $url;
 }
 
-function eh_assessment_get_public_report_download_url_for_json(int $submission_id, string $masked_id): string
+function eh_assessment_get_public_report_download_url_for_json(int $submission_id, string $masked_id, string $pdf_locale = 'id'): string
 {
-    $url = eh_assessment_get_public_report_download_url($submission_id, $masked_id);
+    $url = eh_assessment_get_public_report_download_url($submission_id, $masked_id, $pdf_locale);
     if ($url === '') {
         return '';
     }
@@ -4821,9 +5105,9 @@ function eh_assessment_get_public_report_download_url_for_json(int $submission_i
     return html_entity_decode($url, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 }
 
-function eh_assessment_render_report_download_link(int $submission_id, string $class = 'button', string $label = 'Download Report PDF'): string
+function eh_assessment_render_report_download_link(int $submission_id, string $class = 'button', string $label = 'Download Report PDF', string $pdf_locale = 'id'): string
 {
-    return '<a class="' . esc_attr($class) . '" href="' . esc_url(eh_assessment_get_report_download_url($submission_id)) . '">' . esc_html($label) . '</a>';
+    return '<a class="' . esc_attr($class) . '" href="' . esc_url(eh_assessment_get_report_download_url($submission_id, $pdf_locale)) . '">' . esc_html($label) . '</a>';
 }
 
 /**
@@ -4954,8 +5238,9 @@ function eh_assessment_clinical_diagnosis_from_pdf_template(int $reportType): ar
     ];
 }
 
-function eh_assessment_build_report_data(array $submission): array
+function eh_assessment_build_report_data(array $submission, string $pdf_locale = 'id'): array
 {
+    $pdf_locale = eh_assessment_normalize_report_pdf_locale($pdf_locale);
     $payload = json_decode((string) ($submission['payload_json'] ?? ''), true);
     $payload = is_array($payload) ? $payload : [];
     $answers = is_array($payload['answers'] ?? null) ? $payload['answers'] : [];
@@ -5065,6 +5350,10 @@ function eh_assessment_build_report_data(array $submission): array
     }
     if ($tplRow === null) {
         $tplRow = eh_assessment_report_pdf_template_get_first_placeholder_match($reportType);
+    }
+
+    if ($tplRow !== null) {
+        $tplRow = eh_assessment_report_pdf_template_row_apply_locale($tplRow, $pdf_locale);
     }
 
     $reportTitle = '';
@@ -5519,6 +5808,8 @@ function eh_assessment_handle_admin_actions(): void
         eh_assessment_migrate_v205_report_pdf_template_diagnosis_name_detail();
         eh_assessment_migrate_v211_report_pdf_template_diagnosis_name_plain();
         eh_assessment_migrate_v202_report_pdf_template_seed_precon_defaults();
+        eh_assessment_migrate_v212_report_pdf_template_english_columns();
+        eh_assessment_migrate_v213_assessment_submission_report_pdf_locale();
         eh_assessment_migrate_v181_branch_outlet_display_name();
         eh_assessment_migrate_v210_hair_specialist_daily_overview();
         $cekat = eh_assessment_parse_cekat_row_from_post();
@@ -5696,6 +5987,7 @@ function eh_assessment_handle_admin_actions(): void
             'cekat_image_url' => $cekat['cekat_image_url'],
             'cekat_type' => $cekat['cekat_type'],
             'cekat_ai_agent_json' => $cekat['cekat_ai_agent_json'],
+            'report_pdf_locale' => eh_assessment_normalize_report_pdf_locale((string) ($sanitized['submission']['report_pdf_locale'] ?? 'id')),
             'payload_json' => '',
             'submitted_at' => eh_assessment_current_mysql_time(),
             'updated_at' => eh_assessment_current_mysql_time(),
@@ -6257,6 +6549,29 @@ function eh_assessment_handle_admin_actions(): void
             'title_medical_notes' => $data['title_medical_notes'],
             'body_medical_notes' => $data['body_medical_notes'],
             'description_medical_notes' => $data['description_medical_notes'],
+            'report_header_title_en' => $data['report_header_title_en'],
+            'subtitle_en' => $data['subtitle_en'],
+            'greeting_description_en' => $data['greeting_description_en'],
+            'diagnosis_name_en' => $data['diagnosis_name_en'],
+            'diagnosis_name_detail_en' => $data['diagnosis_name_detail_en'],
+            'title_condition_explanation_en' => $data['title_condition_explanation_en'],
+            'description_condition_explanation_en' => $data['description_condition_explanation_en'],
+            'title_clinical_knowledge_en' => $data['title_clinical_knowledge_en'],
+            'subtitle_clinical_knowledge_en' => $data['subtitle_clinical_knowledge_en'],
+            'description_clinical_knowledge_en' => $data['description_clinical_knowledge_en'],
+            'title_evaluation_urgency_en' => $data['title_evaluation_urgency_en'],
+            'description_evaluation_urgency_en' => $data['description_evaluation_urgency_en'],
+            'title_treatment_journey_en' => $data['title_treatment_journey_en'],
+            'description_treatment_journey_en' => $data['description_treatment_journey_en'],
+            'title_recommendation_approach_en' => $data['title_recommendation_approach_en'],
+            'description_recommendation_approach_en' => $data['description_recommendation_approach_en'],
+            'detail_recommendation_approach_en' => $data['detail_recommendation_approach_en'],
+            'bottom_description_recommendation_approach_en' => $data['bottom_description_recommendation_approach_en'],
+            'title_next_steps_en' => $data['title_next_steps_en'],
+            'description_next_steps_en' => $data['description_next_steps_en'],
+            'title_medical_notes_en' => $data['title_medical_notes_en'],
+            'body_medical_notes_en' => $data['body_medical_notes_en'],
+            'description_medical_notes_en' => $data['description_medical_notes_en'],
             'updated_at' => $now,
         ];
         $formats = array_fill(0, count($row_payload), '%s');
@@ -6349,13 +6664,14 @@ function eh_assessment_handle_admin_actions(): void
 }
 add_action('admin_init', 'eh_assessment_handle_admin_actions');
 
-function eh_assessment_stream_report_pdf(array $submission): void
+function eh_assessment_stream_report_pdf(array $submission, string $pdf_locale = 'id'): void
 {
     if (!class_exists(\Dompdf\Dompdf::class)) {
         wp_die('PDF generation is unavailable on this server.');
     }
 
-    $report_data = eh_assessment_build_report_data($submission);
+    $pdf_locale = eh_assessment_normalize_report_pdf_locale($pdf_locale);
+    $report_data = eh_assessment_build_report_data($submission, $pdf_locale);
     $renderer = new EH_Assessment_Report_Pdf_Renderer();
     $pdf_blob = $renderer->render($report_data);
     $report_id = trim((string) ($submission['masked_id'] ?? ''));
@@ -6405,9 +6721,15 @@ function eh_assessment_handle_report_download(): void
     }
 
     $nonce = isset($_GET['_wpnonce']) ? (string) wp_unslash($_GET['_wpnonce']) : '';
-    if ($nonce === '' || !wp_verify_nonce($nonce, 'eh_download_assessment_report_' . $submission_id)) {
+    $requested_locale = eh_assessment_normalize_report_pdf_locale((string) ($_GET['eh_rpt_lang'] ?? 'id'));
+    $nonce_ok = $nonce !== '' && wp_verify_nonce($nonce, 'eh_download_assessment_report_' . $submission_id . '_' . $requested_locale);
+    if (!$nonce_ok && $nonce !== '' && wp_verify_nonce($nonce, 'eh_download_assessment_report_' . $submission_id)) {
+        $requested_locale = 'id';
+        $nonce_ok = true;
+    }
+    if (!$nonce_ok) {
         wp_die(
-            'Invalid or expired PDF link. In WP Admin open Assessment Submissions, open the submission, and click Download Report PDF again.',
+            'Invalid or expired PDF link. In WP Admin open Assessment Submissions, open the submission, and use Download Report PDF Indonesia or Download Report PDF English again.',
             'Report PDF',
             403
         );
@@ -6418,7 +6740,7 @@ function eh_assessment_handle_report_download(): void
         wp_die('Submission not found.');
     }
 
-    eh_assessment_stream_report_pdf($submission);
+    eh_assessment_stream_report_pdf($submission, $requested_locale);
 }
 
 function eh_assessment_handle_public_report_download(): void
@@ -6437,7 +6759,8 @@ function eh_assessment_handle_public_report_download(): void
         if (!$submission) {
             wp_die('Submission not found.', 'Report PDF', 404);
         }
-        eh_assessment_stream_report_pdf($submission);
+        $pub_locale = eh_assessment_public_report_download_resolve_locale($submission);
+        eh_assessment_stream_report_pdf($submission, $pub_locale);
 
         return;
     }
@@ -6462,7 +6785,8 @@ function eh_assessment_handle_public_report_download(): void
         wp_die('Submission not found.', 'Report PDF', 404);
     }
 
-    eh_assessment_stream_report_pdf($submission);
+    $pub_locale = eh_assessment_public_report_download_resolve_locale($submission);
+    eh_assessment_stream_report_pdf($submission, $pub_locale);
 }
 add_action('admin_post_eh_download_assessment_report', 'eh_assessment_handle_report_download');
 add_action('admin_post_eh_download_assessment_report_public', 'eh_assessment_handle_public_report_download');
@@ -7256,13 +7580,7 @@ function eh_assessment_render_report_preview_page(): void
  */
 function eh_assessment_report_pdf_template_form_sections(): array
 {
-    return [
-        [
-            'title' => 'Report name',
-            'fields' => [
-                ['rpt_report_title', 'Report name', 'text', 'report_title'],
-            ],
-        ],
+    $header_down = [
         [
             'title' => 'Section header',
             'fields' => [
@@ -7344,6 +7662,37 @@ function eh_assessment_report_pdf_template_form_sections(): array
             ],
         ],
     ];
+
+    $sections = [
+        [
+            'title' => 'Report name',
+            'fields' => [
+                ['rpt_report_title', 'Report name', 'text', 'report_title'],
+            ],
+        ],
+    ];
+
+    foreach ($header_down as $block) {
+        $fields = [];
+        foreach ($block['fields'] as $f) {
+            $fields[] = $f;
+            if (($f[2] ?? '') === 'image') {
+                continue;
+            }
+            $fields[] = [
+                (string) $f[0] . '_en',
+                (string) $f[1] . ' (English)',
+                (string) $f[2],
+                (string) $f[3] . '_en',
+            ];
+        }
+        $sections[] = [
+            'title' => (string) $block['title'],
+            'fields' => $fields,
+        ];
+    }
+
+    return $sections;
 }
 
 /**
@@ -7603,7 +7952,9 @@ function eh_assessment_render_submissions_page(): void
             echo '<button type="submit" class="button">Resend Notification</button>';
             echo '</form> ';
         }
-        echo eh_assessment_render_report_download_link((int) $submission['id'], 'button button-primary');
+        echo eh_assessment_render_report_download_link((int) $submission['id'], 'button button-primary', 'Download Report PDF Indonesia', 'id');
+        echo ' ';
+        echo eh_assessment_render_report_download_link((int) $submission['id'], 'button', 'Download Report PDF English', 'en');
         echo '</div>';
         echo '</div>';
         echo '<div style="' . esc_attr($detail_card_style) . '">';
@@ -7623,6 +7974,14 @@ function eh_assessment_render_submissions_page(): void
         echo '<div style="' . esc_attr($meta_item_style) . '"><div style="font-size:12px;color:#667085;margin-bottom:6px;">WhatsApp</div><div style="font-size:16px;font-weight:600;">' . esc_html((string) $submission['respondent_whatsapp']) . '</div></div>';
         echo '<div style="' . esc_attr($meta_item_style) . '"><div style="font-size:12px;color:#667085;margin-bottom:6px;">Submitted At</div><div style="font-size:16px;font-weight:600;">' . esc_html(eh_assessment_format_admin_datetime((string) $submission['submitted_at'])) . '</div></div>';
         echo '<div style="' . esc_attr($meta_item_style) . '"><div style="font-size:12px;color:#667085;margin-bottom:6px;">Updated At</div><div style="font-size:16px;font-weight:600;">' . esc_html(eh_assessment_format_admin_datetime((string) $submission['updated_at'])) . '</div></div>';
+        $report_pdf_locale_detail = trim((string) ($submission['report_pdf_locale'] ?? ''));
+        if ($report_pdf_locale_detail === '' && isset($payload['submission']['report_pdf_locale'])) {
+            $report_pdf_locale_detail = trim((string) $payload['submission']['report_pdf_locale']);
+        }
+        $report_pdf_locale_detail = $report_pdf_locale_detail !== ''
+            ? eh_assessment_normalize_report_pdf_locale($report_pdf_locale_detail)
+            : 'id';
+        echo '<div style="' . esc_attr($meta_item_style) . '"><div style="font-size:12px;color:#667085;margin-bottom:6px;">Report PDF language</div><div style="font-size:16px;font-weight:600;">' . esc_html($report_pdf_locale_detail) . '</div></div>';
         echo '</div>';
         echo '</div>';
 
@@ -7778,7 +8137,7 @@ function eh_assessment_render_submissions_page(): void
         echo '<div class="eh-assessment-section" style="' . esc_attr($detail_card_style) . '">';
         echo '<h2 style="margin-top:0;">Raw Payload</h2>';
         if (is_array($payload) && function_exists('eh_assessment_cekat_submission_saved_webhook_body')) {
-            echo '<p class="description" style="margin-top:0;">Shown in the same shape as the Cekat webhook POST body: <code>submission</code> (<code>branch_office_name</code>, <code>lead_source</code>, <code>report_id</code>, <code>clinical_profile</code>, <code>score</code>, <code>band</code>, <code>patient_type</code>, <code>strategy</code>, <code>report_pdf_url</code>, <code>agent_id</code>), <code>respondent</code>, and <code>answers</code>. This is the body sent to the webhook after the submission is normalized.</p>';
+            echo '<p class="description" style="margin-top:0;">Shown in the same shape as the Cekat webhook POST body: <code>submission</code> (<code>branch_office_name</code>, <code>lead_source</code>, <code>report_id</code>, <code>clinical_profile</code>, <code>score</code>, <code>band</code>, <code>patient_type</code>, <code>strategy</code>, <code>report_pdf_locale</code>, <code>report_pdf_url</code>, <code>agent_id</code>), <code>respondent</code>, and <code>answers</code>. This is the body sent to the webhook after the submission is normalized.</p>';
         } else {
             echo '<p class="description" style="margin-top:0;">Webhook payload view is unavailable; update the plugin or reload.</p>';
         }
@@ -7850,9 +8209,10 @@ function eh_assessment_render_submissions_page(): void
     }
     if ($search_term !== '') {
         $like = '%' . $wpdb->esc_like($search_term) . '%';
-        $where_clauses[] = '(CAST(s.id AS CHAR) LIKE %s OR s.masked_id LIKE %s OR s.respondent_name LIKE %s OR s.respondent_whatsapp LIKE %s OR s.respondent_gender LIKE %s OR s.status LIKE %s OR bo.cekat_name LIKE %s OR bo.display_name LIKE %s OR s.submitted_at LIKE %s OR s.updated_at LIKE %s OR s.cekat_name LIKE %s OR s.cekat_masking_id LIKE %s OR CAST(s.respondent_birthdate AS CHAR) LIKE %s OR s.agent_name LIKE %s OR s.lead_source LIKE %s OR s.computed_condition_title LIKE %s OR s.computed_band LIKE %s OR CAST(s.computed_report_type AS CHAR) LIKE %s OR CAST(s.computed_score AS CHAR) LIKE %s OR s.computed_clinical_warnings LIKE %s OR s.computed_communication_strategy LIKE %s)';
+        $where_clauses[] = '(CAST(s.id AS CHAR) LIKE %s OR s.masked_id LIKE %s OR s.respondent_name LIKE %s OR s.respondent_whatsapp LIKE %s OR s.respondent_gender LIKE %s OR s.status LIKE %s OR bo.cekat_name LIKE %s OR bo.display_name LIKE %s OR s.submitted_at LIKE %s OR s.updated_at LIKE %s OR s.cekat_name LIKE %s OR s.cekat_masking_id LIKE %s OR CAST(s.respondent_birthdate AS CHAR) LIKE %s OR s.agent_name LIKE %s OR s.lead_source LIKE %s OR s.report_pdf_locale LIKE %s OR s.computed_condition_title LIKE %s OR s.computed_band LIKE %s OR CAST(s.computed_report_type AS CHAR) LIKE %s OR CAST(s.computed_score AS CHAR) LIKE %s OR s.computed_clinical_warnings LIKE %s OR s.computed_communication_strategy LIKE %s)';
         array_push(
             $where_values,
+            $like,
             $like,
             $like,
             $like,
@@ -7897,6 +8257,7 @@ function eh_assessment_render_submissions_page(): void
         'cekat_name' => 's.cekat_name',
         'submitted_at' => 's.submitted_at',
         'lead_source' => 's.lead_source',
+        'report_pdf_locale' => 's.report_pdf_locale',
         'computed_report_type' => 's.computed_report_type',
         'computed_score' => 's.computed_score',
         'computed_condition_title' => 's.computed_condition_title',
@@ -7906,7 +8267,7 @@ function eh_assessment_render_submissions_page(): void
     $order_sql = strtolower(sanitize_text_field((string) ($_GET['order'] ?? 'desc'))) === 'asc' ? 'ASC' : 'DESC';
     $branchOutletLabel = eh_assessment_branch_outlet_label_sql('bo');
     $sql = "SELECT s.id, s.masked_id, s.status, s.respondent_name, s.respondent_whatsapp, s.respondent_gender, s.submitted_at, s.cekat_name, s.agent_name,
-            s.lead_source, s.computed_report_type, s.computed_score, s.computed_band, s.computed_condition_title, s.computed_patient_type,
+            s.lead_source, s.report_pdf_locale, s.computed_report_type, s.computed_score, s.computed_band, s.computed_condition_title, s.computed_patient_type,
             {$branchOutletLabel} AS branch_outlet_name
          FROM {$assessment_table} s
          LEFT JOIN {$branch_table} bo ON bo.id = s.branch_outlet_id AND bo.deleted_at IS NULL
@@ -8011,6 +8372,7 @@ function eh_assessment_render_submissions_page(): void
     echo '<th>' . eh_assessment_admin_sort_link($base_args, 'id', 'ID') . '</th>';
     echo '<th>' . eh_assessment_admin_sort_link($base_args, 'masked_id', 'Report ID') . '</th>';
     echo '<th>' . eh_assessment_admin_sort_link($base_args, 'computed_report_type', 'Rpt') . '</th>';
+    echo '<th>' . eh_assessment_admin_sort_link($base_args, 'report_pdf_locale', 'PDF lang') . '</th>';
     echo '<th>' . eh_assessment_admin_sort_link($base_args, 'computed_condition_title', 'Profil klinis') . '</th>';
     echo '<th>' . eh_assessment_admin_sort_link($base_args, 'computed_score', 'Score') . '</th>';
     echo '<th>Band</th>';
@@ -8027,7 +8389,7 @@ function eh_assessment_render_submissions_page(): void
     echo '</tr></thead><tbody>';
 
     if (!$rows) {
-        echo '<tr><td colspan="16">No submissions found.</td></tr>';
+        echo '<tr><td colspan="17">No submissions found.</td></tr>';
     } else {
         foreach ($rows as $row) {
             $detail_url = add_query_arg(
@@ -8047,6 +8409,9 @@ function eh_assessment_render_submissions_page(): void
                 ? (int) $row['computed_report_type']
                 : 0;
             echo '<td>' . esc_html($crt > 0 ? (string) $crt : '—') . '</td>';
+            $rpl = trim((string) ($row['report_pdf_locale'] ?? ''));
+            $rpl = $rpl !== '' ? eh_assessment_normalize_report_pdf_locale($rpl) : 'id';
+            echo '<td>' . esc_html($rpl) . '</td>';
             $cct = trim((string) ($row['computed_condition_title'] ?? ''));
             echo '<td style="max-width:200px;">' . ($cct !== '' ? esc_html($cct) : '—') . '</td>';
             $csc = isset($row['computed_score']) && $row['computed_score'] !== null && $row['computed_score'] !== ''
@@ -8078,7 +8443,9 @@ function eh_assessment_render_submissions_page(): void
                 echo '<input type="hidden" name="submission_id" value="' . esc_attr((string) $row['id']) . '">';
                 echo '<button type="submit" class="button button-small">Resend Notification</button></form> ';
             }
-            echo eh_assessment_render_report_download_link((int) $row['id'], 'button button-small');
+            echo eh_assessment_render_report_download_link((int) $row['id'], 'button button-small', 'Download Report PDF Indonesia', 'id');
+            echo ' ';
+            echo eh_assessment_render_report_download_link((int) $row['id'], 'button button-small', 'Download Report PDF English', 'en');
             echo '</td>';
             echo '</tr>';
         }
@@ -8269,6 +8636,8 @@ function eh_assessment_migrate_role_access_and_user_assignments(): void
     eh_assessment_migrate_v205_report_pdf_template_diagnosis_name_detail();
     eh_assessment_migrate_v211_report_pdf_template_diagnosis_name_plain();
     eh_assessment_migrate_v202_report_pdf_template_seed_precon_defaults();
+    eh_assessment_migrate_v212_report_pdf_template_english_columns();
+    eh_assessment_migrate_v213_assessment_submission_report_pdf_locale();
     eh_assessment_migrate_v181_branch_outlet_display_name();
     eh_assessment_migrate_v190_submission_computed_columns();
 
@@ -8349,6 +8718,7 @@ function eh_assessment_migrate_role_access_and_user_assignments(): void
             'cekat_image_url' => null,
             'cekat_type' => null,
             'cekat_ai_agent_json' => null,
+            'report_pdf_locale' => 'id',
             'payload_json' => eh_assessment_payload_json_for_storage($san_a),
             'submitted_at' => eh_assessment_current_mysql_time(),
             'updated_at' => eh_assessment_current_mysql_time(),

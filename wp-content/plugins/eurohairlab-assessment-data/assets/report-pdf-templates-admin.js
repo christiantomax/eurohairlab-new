@@ -199,30 +199,53 @@
     ['masking_id', 'rpt_masking_id'],
     ['report_title', 'rpt_report_title'],
     ['report_header_title', 'rpt_report_header_title'],
+    ['report_header_title_en', 'rpt_report_header_title_en'],
     ['subtitle', 'rpt_subtitle'],
+    ['subtitle_en', 'rpt_subtitle_en'],
     ['greeting_description', 'rpt_greeting_description'],
+    ['greeting_description_en', 'rpt_greeting_description_en'],
     ['diagnosis_name', 'rpt_diagnosis_name'],
+    ['diagnosis_name_en', 'rpt_diagnosis_name_en'],
     ['diagnosis_name_detail', 'rpt_diagnosis_name_detail'],
+    ['diagnosis_name_detail_en', 'rpt_diagnosis_name_detail_en'],
     ['title_condition_explanation', 'rpt_title_condition_explanation'],
+    ['title_condition_explanation_en', 'rpt_title_condition_explanation_en'],
     ['description_condition_explanation', 'rpt_description_condition_explanation'],
+    ['description_condition_explanation_en', 'rpt_description_condition_explanation_en'],
     ['title_clinical_knowledge', 'rpt_title_clinical_knowledge'],
+    ['title_clinical_knowledge_en', 'rpt_title_clinical_knowledge_en'],
     ['subtitle_clinical_knowledge', 'rpt_subtitle_clinical_knowledge'],
+    ['subtitle_clinical_knowledge_en', 'rpt_subtitle_clinical_knowledge_en'],
     ['image_clinical_knowledge', 'rpt_image_clinical_knowledge'],
     ['description_clinical_knowledge', 'rpt_description_clinical_knowledge'],
+    ['description_clinical_knowledge_en', 'rpt_description_clinical_knowledge_en'],
     ['title_evaluation_urgency', 'rpt_title_evaluation_urgency'],
+    ['title_evaluation_urgency_en', 'rpt_title_evaluation_urgency_en'],
     ['description_evaluation_urgency', 'rpt_description_evaluation_urgency'],
+    ['description_evaluation_urgency_en', 'rpt_description_evaluation_urgency_en'],
     ['title_treatment_journey', 'rpt_title_treatment_journey'],
+    ['title_treatment_journey_en', 'rpt_title_treatment_journey_en'],
     ['description_treatment_journey', 'rpt_description_treatment_journey'],
+    ['description_treatment_journey_en', 'rpt_description_treatment_journey_en'],
     ['image_treatment_journey', 'rpt_image_treatment_journey'],
     ['title_recommendation_approach', 'rpt_title_recommendation_approach'],
+    ['title_recommendation_approach_en', 'rpt_title_recommendation_approach_en'],
     ['description_recommendation_approach', 'rpt_description_recommendation_approach'],
+    ['description_recommendation_approach_en', 'rpt_description_recommendation_approach_en'],
     ['detail_recommendation_approach', 'rpt_detail_recommendation_approach'],
+    ['detail_recommendation_approach_en', 'rpt_detail_recommendation_approach_en'],
     ['bottom_description_recommendation_approach', 'rpt_bottom_description_recommendation_approach'],
+    ['bottom_description_recommendation_approach_en', 'rpt_bottom_description_recommendation_approach_en'],
     ['title_next_steps', 'rpt_title_next_steps'],
+    ['title_next_steps_en', 'rpt_title_next_steps_en'],
     ['description_next_steps', 'rpt_description_next_steps'],
+    ['description_next_steps_en', 'rpt_description_next_steps_en'],
     ['title_medical_notes', 'rpt_title_medical_notes'],
+    ['title_medical_notes_en', 'rpt_title_medical_notes_en'],
     ['body_medical_notes', 'rpt_body_medical_notes'],
+    ['body_medical_notes_en', 'rpt_body_medical_notes_en'],
     ['description_medical_notes', 'rpt_description_medical_notes'],
+    ['description_medical_notes_en', 'rpt_description_medical_notes_en'],
   ];
 
   function setVal(name, value) {
@@ -255,6 +278,7 @@
       setVal(pair[1], '');
     });
     setVal('rpt_report_header_title', 'HAIR HEALTH');
+    setVal('rpt_report_header_title_en', 'HAIR HEALTH');
     refreshAllImagePreviews();
     maskingInput.removeAttribute('readonly');
     maskingInput.value = '';
