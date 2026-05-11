@@ -4074,6 +4074,13 @@ function eh_assessment_sanitize_payload(array $payload): array
     } elseif (isset($submission['report_language'])) {
         $report_pdf_locale = eh_assessment_normalize_report_pdf_locale((string) $submission['report_language']);
     }
+    if (
+        $source_page_id > 0
+        && function_exists('eurohairlab_assessment_force_id_lang_enabled')
+        && eurohairlab_assessment_force_id_lang_enabled($source_page_id)
+    ) {
+        $report_pdf_locale = 'id';
+    }
     $submission_out['report_pdf_locale'] = $report_pdf_locale;
 
     return [

@@ -109,6 +109,9 @@ $contact_url = esc_url(eurohairlab_get_primary_cta_url());
 
 $landing_bg_url = $resolve_image($landing_background_meta_raw, $theme_uri . '/assets/images/figma/assessment-home.webp');
 
+$assessment_force_id_lang = function_exists('eurohairlab_assessment_force_id_lang_enabled')
+    && eurohairlab_assessment_force_id_lang_enabled((int) $page_id);
+
 $assessment_i18n_bundles = [
     'en' => null,
     'id' => null,
@@ -182,6 +185,7 @@ if ($max_name_attr < 1) {
   id="assessment-page"
   class="assessment-page relative min-h-screen bg-white text-[#231f20]"
   data-assessment-lang="<?php echo esc_attr($assessment_active_lang); ?>"
+  data-assessment-force-id-lang="<?php echo $assessment_force_id_lang ? '1' : '0'; ?>"
   data-home-url="<?php echo $home_url; ?>"
   data-contact-url="<?php echo $contact_url; ?>"
   data-gender-placeholder="<?php echo esc_attr($form_labels['gender_placeholder']); ?>"
@@ -207,7 +211,7 @@ if ($max_name_attr < 1) {
             <span data-assessment-i18n-landing="back"><?php echo esc_html($landing['back_text']); ?></span>
           </a>
 
-          <a href="<?php echo $logo_url; ?>" class="assessment-brand  absolute lg:relative mt-[6%] lg:mt-0" data-assessment-i18n-aria="home_aria" aria-label="<?php echo esc_attr($assessment_ui['home_aria']); ?>">
+          <a href="<?php echo $logo_url; ?>" class="assessment-brand" data-assessment-i18n-aria="home_aria" aria-label="<?php echo esc_attr($assessment_ui['home_aria']); ?>">
             <img
               src="<?php echo $theme_uri; ?>/assets/images/logo.webp"
               alt="Eurohairlab by Dr.Scalp"
@@ -217,10 +221,12 @@ if ($max_name_attr < 1) {
             >
           </a>
 
-          <?php get_template_part('template-parts/site-header', 'lang', ['id_suffix' => 'assessment-landing']); ?>
+          <?php if (!$assessment_force_id_lang) : ?>
+            <?php get_template_part('template-parts/site-header', 'lang', ['id_suffix' => 'assessment-landing']); ?>
+          <?php endif; ?>
         </header>
 
-        <div class="assessment-landing__body flex flex-col justify-center mt-[8rem] lg:mt-0">
+        <div class="assessment-landing__body flex flex-col justify-center mt-6 sm:mt-10 lg:mt-0">
           <h1 class="assessment-title assessment-title--landing text-[1.2rem] md:text-[3vw]" data-assessment-i18n-landing="title"><?php echo esc_html($landing['title']); ?></h1>
 
           <div class="assessment-copy" data-assessment-i18n-landing="intro-wrap">
@@ -323,7 +329,9 @@ if ($max_name_attr < 1) {
           </a>
 
           <div class="assessment-wizard-header__end">
-            <?php get_template_part('template-parts/site-header', 'lang', ['id_suffix' => 'assessment-wizard']); ?>
+            <?php if (!$assessment_force_id_lang) : ?>
+              <?php get_template_part('template-parts/site-header', 'lang', ['id_suffix' => 'assessment-wizard']); ?>
+            <?php endif; ?>
             <button type="button" class="assessment-icon-button" data-assessment-close data-assessment-i18n-aria="wizard_close" aria-label="<?php echo esc_attr($assessment_ui['wizard_close']); ?>">X</button>
           </div>
         </header>

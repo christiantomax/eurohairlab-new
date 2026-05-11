@@ -274,6 +274,25 @@ add_filter('rwmb_meta_boxes', 'eurohairlab_assessment_register_meta_boxes');
 function eurohairlab_assessment_register_meta_boxes($meta_boxes)
 {
     $meta_boxes[] = [
+        'title'      => esc_html__('Configuration Language', 'eurohairlab'),
+        'id'         => 'eh_assessment_config_language_section',
+        'post_types' => ['page'],
+        'context'    => 'normal',
+        'autosave'   => true,
+        'priority'   => 'high',
+        'closed'     => false,
+        'fields'     => [
+            [
+                'type' => 'switch',
+                'name' => esc_html__('Force Indonesian language', 'eurohairlab'),
+                'id'   => 'eh_assessment_force_id_lang',
+                'std'  => false,
+                'desc' => 'When this toggle is on, visitors always see this assessment in Indonesian, generated Report PDFs use Indonesian, and the public EN/ID language selector is hidden on the assessment page. New submissions store Report PDF language as Indonesian (id), including report PDF links in notification emails.',
+            ],
+        ],
+    ];
+
+    $meta_boxes[] = [
         'title'      => esc_html__('Assessment Landing', 'eurohairlab'),
         'id'         => 'eh_assessment_landing_section',
         'post_types' => ['page'],

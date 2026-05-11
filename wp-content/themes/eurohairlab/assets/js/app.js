@@ -1908,7 +1908,11 @@ const initAssessmentWizard = () => {
     const assessmentUiLang = String(root.dataset.assessmentLang || "id")
       .trim()
       .toLowerCase();
-    const report_pdf_locale = assessmentUiLang === "en" ? "en" : "id";
+    const forceIdLang = String(root.dataset.assessmentForceIdLang || "").trim() === "1";
+    let report_pdf_locale = "id";
+    if (!forceIdLang && assessmentUiLang === "en") {
+      report_pdf_locale = "en";
+    }
 
     const submission = {
       source_page_slug: sourcePageSlug,

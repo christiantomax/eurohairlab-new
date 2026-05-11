@@ -217,3 +217,61 @@ function eurohairlab_assessment_build_lang_specific_vars(int $page_id, string $t
         'assessment_ui' => $assessment_ui,
     ];
 }
+
+/**
+ * Whether the page uses the Online Assessment template (slug or template file).
+ */
+function eurohairlab_is_assessment_template_page_id(int $post_id): bool
+{
+    if ($post_id <= 0) {
+        return false;
+    }
+
+    $tpl = (string) get_page_template_slug($post_id);
+    if ($tpl !== '' && (str_ends_with($tpl, 'page-assessment.php') || $tpl === 'page-assessment.php')) {
+        return true;
+    }
+
+    $post = get_post($post_id);
+
+    return $post instanceof WP_Post
+        && $post->post_type === 'page'
+        && isset($post->post_name)
+        && (string) $post->post_name === 'assessment';
+}
+
+/**
+ * RWMB: force entire assessment + report PDF flow to Indonesian for this page.
+ */
+function eurohairlab_assessment_force_id_lang_enabled(int $page_id): bool
+{
+    if ($page_id <= 0 || !function_exists('rwmb_meta')) {
+        return false;
+    }
+
+    $v = rwmb_meta('eh_assessment_force_id_lang', [], $page_id);
+
+    return $v === 1 || $v === '1' || $v === true;
+}
+
+add_filter('eurohairlab_public_lang_override', static function ($override) {
+    if (is_admin()) {
+        return $override;
+    }
+    if (!is_singular('page')) {
+        return $override;
+    }
+    $post = get_queried_object();
+    if (!$post instanceof WP_Post) {
+        return $override;
+    }
+    $pid = (int) $post->ID;
+    if (!eurohairlab_is_assessment_template_page_id($pid)) {
+        return $override;
+    }
+    if (!eurohairlab_assessment_force_id_lang_enabled($pid)) {
+        return $override;
+    }
+
+    return 'id';
+}, 10);
