@@ -136,8 +136,8 @@ foreach ($programs as $program) {
 
   <section class="relative z-30 -mt-4 px-4 sm:px-5 lg:-mt-6 lg:px-20">
     <div class="reveal bg-[#d5bba0] shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
-      <div class="treatments-mobile-nav lg:hidden px-4 py-6 text-eh-ink flex >
-        <span class="treatments-mobile-nav__label font-futuraBk text-[14px] font-normal leading-[1]">Treatmen</span>
+      <div class="treatments-mobile-nav lg:hidden px-4 py-6 text-eh-ink">
+        <span class="treatments-mobile-nav__label font-futuraBk text-[14px] font-normal leading-[1]"><?php echo esc_html(eurohairlab_public_ui_text('Treatments', 'Perawatan')); ?></span>
         <div class="treatments-mobile-nav__select-wrap w-full">
           <label for="treatments-mobile-select" class="sr-only"><?php echo esc_html__('Choose treatment', 'eurohairlab'); ?></label>
           <select
@@ -155,7 +155,7 @@ foreach ($programs as $program) {
       </div>
 
       <div class="hidden items-center gap-4 py-2 text-eh-ink sm:px-8 lg:grid" style="grid-template-columns: 11rem repeat(<?php echo (int) max(count($tabs), 1); ?>, minmax(0, 1fr));">
-        <span class="border-r-2 border-white/45 py-4 text-center font-futuraBk text-[14px] font-normal leading-[1]">Treatments :</span>
+        <span class="border-r-2 border-white/45 py-4 text-center font-futuraBk text-[14px] font-normal leading-[1]"><?php echo esc_html(eurohairlab_public_ui_text('Treatments :', 'Perawatan :')); ?></span>
         <?php foreach ($tabs as $index => $tab) : ?>
           <div class="flex justify-center <?php echo $index === 0 ? 'pl-10' : 'pl-4'; ?>">
             <a
