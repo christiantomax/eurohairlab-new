@@ -1172,7 +1172,6 @@ const initAssessmentWizard = () => {
   if (!root) {
     return;
   }
-  
 
   const configElement = document.getElementById("assessment-config");
 
@@ -1180,7 +1179,16 @@ const initAssessmentWizard = () => {
     return;
   }
 
-  const steps = JSON.parse(configElement.textContent);
+  let steps = JSON.parse(configElement.textContent);
+  const i18nEl = document.getElementById("assessment-i18n-bundles");
+  let i18nBundles = null;
+  try {
+    i18nBundles = i18nEl?.textContent ? JSON.parse(i18nEl.textContent) : null;
+  } catch {
+    i18nBundles = null;
+  }
+  const spaI18nEnabled = Boolean(i18nBundles?.en && i18nBundles?.id);
+
   const mainHeader = document.getElementById("assessment-main-header");
   const screens = {
     landing: root.querySelector('[data-assessment-screen="landing"]'),
@@ -1225,7 +1233,7 @@ const initAssessmentWizard = () => {
   const genderMenu = root.querySelector("[data-assessment-select-menu]");
   const genderLabel = root.querySelector("[data-assessment-select-label]");
   const genderOptions = [...root.querySelectorAll("[data-assessment-select-option]")];
-  const genderPlaceholder = root.dataset.genderPlaceholder || "Select gender";
+  let genderPlaceholder = root.dataset.genderPlaceholder || "Select gender";
   const assessmentEndpoint = window.eurohairlabAssessment?.endpoint || "";
   const branchOfficesConfigured = (window.eurohairlabAssessment?.branch_offices?.length ?? 0) > 0;
   const sourcePageSlug = String(root.dataset.sourcePageSlug || "").trim();
@@ -1897,10 +1905,16 @@ const initAssessmentWizard = () => {
         ? parsedReportType
         : 5;
 
+    const assessmentUiLang = String(root.dataset.assessmentLang || "id")
+      .trim()
+      .toLowerCase();
+    const report_pdf_locale = assessmentUiLang === "en" ? "en" : "id";
+
     const submission = {
       source_page_slug: sourcePageSlug,
       branch_outlet_masking_id: branchOutletMaskingId,
       report_type: reportType,
+      report_pdf_locale,
     };
     if (agentMaskingIdFromUrl) {
       submission.agent_masking_id = agentMaskingIdFromUrl;
@@ -1988,14 +2002,180 @@ const initAssessmentWizard = () => {
     }
   });
 
+  const escapeAssessmentHtml = (raw) =>
+    String(raw ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
+  const setEurohairlabLangCookie = (lang) => {
+    const maxAge = 365 * 24 * 60 * 60;
+    const secure = window.location.protocol === "https:";
+    document.cookie = `eurohairlab_lang=${lang};path=/;max-age=${maxAge};SameSite=Lax${secure ? ";Secure" : ""}`;
+  };
+
+  const syncStoredAssessmentQuestionTitles = () => {
+    for (const step of steps) {
+      const k = step?.key;
+      if (k && answers[k]) {
+        answers[k].question = step.title || "";
+      }
+    }
+  };
+
+  const applyAssessmentI18nDom = (bundle) => {
+    if (!bundle) {
+      return;
+    }
+
+    const landing = bundle.landing || {};
+    const backSpan = root.querySelector("[data-assessment-i18n-landing='back']");
+    if (backSpan) {
+      backSpan.textContent = landing.back_text || "";
+    }
+    const titleEl = root.querySelector("[data-assessment-i18n-landing='title']");
+    if (titleEl) {
+      titleEl.textContent = landing.title || "";
+    }
+    const introWrap = root.querySelector("[data-assessment-i18n-landing='intro-wrap']");
+    if (introWrap && Array.isArray(landing.intro_paragraphs)) {
+      introWrap.innerHTML = landing.intro_paragraphs
+        .map(
+          (p) =>
+            `<h1 class="assessment-title assessment-title--landing text-[1.2rem] md:text-[3vw]">${escapeAssessmentHtml(p)}</h1>`
+        )
+        .join("");
+    }
+    const startEl = root.querySelector("[data-assessment-i18n-landing='start']");
+    if (startEl) {
+      startEl.textContent = landing.start_button_text || "";
+    }
+
+    const complete = bundle.complete || {};
+    const cTitle = root.querySelector("[data-assessment-i18n-complete='title']");
+    if (cTitle) {
+      cTitle.textContent = complete.title || "";
+    }
+    const cBody = root.querySelector("[data-assessment-i18n-complete='body']");
+    if (cBody && typeof complete.paragraph_html === "string") {
+      cBody.innerHTML = complete.paragraph_html;
+    }
+    const cCta = root.querySelector("[data-assessment-i18n-complete='cta']");
+    if (cCta) {
+      cCta.textContent = complete.cta_text || "";
+    }
+
+    const labels = bundle.form_labels || {};
+    root.querySelectorAll("[data-assessment-i18n-form]").forEach((el) => {
+      const k = el.dataset.assessmentI18nForm;
+      if (!k || labels[k] === undefined) {
+        return;
+      }
+      el.textContent = labels[k];
+    });
+
+    const ui = bundle.ui || {};
+    root.querySelectorAll("[data-assessment-i18n-ui]").forEach((el) => {
+      const k = el.dataset.assessmentI18nUi;
+      if (!k || ui[k] === undefined) {
+        return;
+      }
+      el.textContent = ui[k];
+    });
+
+    root.querySelectorAll("[data-assessment-i18n-aria]").forEach((el) => {
+      const k = el.dataset.assessmentI18nAria;
+      if (!k) {
+        return;
+      }
+      const v = ui[k];
+      if (v === undefined) {
+        return;
+      }
+      if (el.tagName === "IMG") {
+        el.setAttribute("alt", v);
+      } else {
+        el.setAttribute("aria-label", v);
+      }
+    });
+
+    const branchSel = inputs.branchOffice;
+    if (branchSel && labels.branch_office !== undefined) {
+      branchSel.setAttribute("aria-label", labels.branch_office);
+    }
+  };
+
+  const updateAssessmentLangSelectUi = (lang) => {
+    root.querySelectorAll("[data-eh-lang-select]").forEach((wrap) => {
+      const val = wrap.querySelector(".eh-lang-select__value");
+      if (val) {
+        val.textContent = lang.toUpperCase();
+      }
+      wrap.querySelectorAll(".eh-lang-select__option").forEach((opt) => {
+        const href = opt.getAttribute("href") || "";
+        const active = (lang === "id" && href.includes("lang=id")) || (lang === "en" && href.includes("lang=en"));
+        opt.classList.toggle("is-active", active);
+      });
+      wrap.classList.remove("is-open");
+      wrap.querySelector(".eh-lang-select__trigger")?.setAttribute("aria-expanded", "false");
+    });
+  };
+
+  const applyAssessmentSpaLanguage = (lang) => {
+    if (!spaI18nEnabled || (lang !== "en" && lang !== "id")) {
+      return;
+    }
+    const bundle = i18nBundles[lang];
+    if (!bundle) {
+      return;
+    }
+    setEurohairlabLangCookie(lang);
+    root.dataset.assessmentLang = lang;
+    steps = JSON.parse(JSON.stringify(bundle.steps));
+    const labels = bundle.form_labels || {};
+    genderPlaceholder = labels.gender_placeholder || genderPlaceholder;
+    root.dataset.genderPlaceholder = genderPlaceholder;
+    syncStoredAssessmentQuestionTitles();
+    applyAssessmentI18nDom(bundle);
+    updateAssessmentLangSelectUi(lang);
+
+    const currentGender = inputs.gender?.value || "";
+    setGenderValue(currentGender);
+
+    if (currentStep >= 0) {
+      renderStep();
+    }
+  };
+
+  if (spaI18nEnabled) {
+    root.addEventListener(
+      "click",
+      (event) => {
+        const link = event.target.closest(".eh-lang-select__menu a[href*='lang=']");
+        if (!link || !root.contains(link)) {
+          return;
+        }
+        let next = "";
+        try {
+          next = new URL(link.href, window.location.origin).searchParams.get("lang") || "";
+        } catch {
+          return;
+        }
+        if (next !== "en" && next !== "id") {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        applyAssessmentSpaLanguage(next);
+      },
+      true
+    );
+  }
+
   setScreen("landing");
   syncSubmitState();
-
-  window.addEventListener("beforeunload", () => {
-    if (assessmentStarted && !assessmentSubmitted && currentStep >= 0) {
-      pushAssessmentEvent("assessment_abandon");
-    }
-  });
 };
 
 /** Eased in-page scroll (RAF) — smoother and more consistent than native `scroll-behavior` alone. */
