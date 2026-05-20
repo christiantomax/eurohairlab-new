@@ -20,6 +20,12 @@ require_once get_template_directory() . '/inc/assessment-page-data.php';
 require_once get_template_directory() . '/inc/metabox-seo.php';
 require_once get_template_directory() . '/inc/cpt-eurohairlab-marketing.php';
 require_once get_template_directory() . '/inc/metabox-marketing-pages.php';
+require_once get_template_directory() . '/inc/eh-media-optimize.php';
+require_once get_template_directory() . '/inc/eh-popup-db.php';
+require_once get_template_directory() . '/inc/eh-popup-helpers.php';
+require_once get_template_directory() . '/inc/eh-popup-cpt.php';
+require_once get_template_directory() . '/inc/metabox-popup.php';
+require_once get_template_directory() . '/inc/eh-popup-frontend.php';
 
 function eurohairlab_theme_setup(): void
 {

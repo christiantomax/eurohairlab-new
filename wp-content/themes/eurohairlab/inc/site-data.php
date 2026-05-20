@@ -183,14 +183,39 @@ function eurohairlab_diagnosis_resolve_asset(string $filename, string $fallback_
 }
 
 /**
+ * Resolve a Meta Box single_image value to an attachment post ID.
+ *
+ * @param mixed $value RWMB field value (ID, array with ID/url, or empty).
+ */
+function eurohairlab_mb_attachment_id(mixed $value): int
+{
+    if (is_numeric($value)) {
+        return max(0, (int) $value);
+    }
+
+    if (is_array($value)) {
+        if (isset($value['ID']) && is_numeric($value['ID'])) {
+            return max(0, (int) $value['ID']);
+        }
+
+        if (isset($value['id']) && is_numeric($value['id'])) {
+            return max(0, (int) $value['id']);
+        }
+    }
+
+    return 0;
+}
+
+/**
  * Resolve a Meta Box single_image / attachment-like value to a URL string.
  *
  * @param mixed $value RWMB field value (ID, array with ID/url, or empty).
  */
 function eurohairlab_mb_image_url($value, string $fallback = ''): string
 {
-    if (is_numeric($value)) {
-        $url = wp_get_attachment_image_url((int) $value, 'full');
+    $attachment_id = eurohairlab_mb_attachment_id($value);
+    if ($attachment_id > 0) {
+        $url = wp_get_attachment_image_url($attachment_id, 'full');
 
         return is_string($url) && $url !== '' ? $url : $fallback;
     }
