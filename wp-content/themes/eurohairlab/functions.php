@@ -634,17 +634,35 @@ add_filter('pre_get_document_title', 'eurohairlab_filter_document_title', 20);
 function eurohairlab_is_seo_noindex(?WP_Post $post = null): bool
 {
     $post = $post instanceof WP_Post ? $post : eurohairlab_get_seo_target_post();
-    if (!$post instanceof WP_Post || !function_exists('rwmb_meta')) {
+    if (!$post instanceof WP_Post) {
         return false;
     }
 
-    $value = rwmb_meta('eh_seo_noindex', [], $post->ID);
+    $value = function_exists('rwmb_meta')
+        ? rwmb_meta('eh_seo_noindex', [], $post->ID)
+        : get_post_meta($post->ID, 'eh_seo_noindex', true);
+
     if (is_array($value)) {
         $value = reset($value);
     }
 
     return in_array($value, [1, '1', true], true);
 }
+
+function eurohairlab_allow_page_indexing(): void
+{
+    if (is_admin()) {
+        return;
+    }
+
+    $post = eurohairlab_get_seo_target_post();
+    if (!$post instanceof WP_Post || eurohairlab_is_seo_noindex($post)) {
+        return;
+    }
+
+    remove_filter('wp_robots', 'wp_robots_noindex');
+}
+add_action('wp', 'eurohairlab_allow_page_indexing');
 
 function eurohairlab_filter_wp_robots(array $robots): array
 {
@@ -656,19 +674,18 @@ function eurohairlab_filter_wp_robots(array $robots): array
     if (eurohairlab_is_seo_noindex($post)) {
         $robots['noindex'] = true;
         $robots['nofollow'] = true;
+        unset($robots['index'], $robots['follow']);
 
         return $robots;
     }
 
-    if ((int) get_option('blog_public') === 1) {
-        unset($robots['noindex'], $robots['nofollow']);
-        $robots['index'] = true;
-        $robots['follow'] = true;
-    }
+    unset($robots['noindex'], $robots['nofollow']);
+    $robots['index'] = true;
+    $robots['follow'] = true;
 
     return $robots;
 }
-add_filter('wp_robots', 'eurohairlab_filter_wp_robots', 20);
+add_filter('wp_robots', 'eurohairlab_filter_wp_robots', 999);
 
 function eurohairlab_output_meta_tags(): void
 {
