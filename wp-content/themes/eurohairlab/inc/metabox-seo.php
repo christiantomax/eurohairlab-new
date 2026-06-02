@@ -45,8 +45,9 @@ function eurohairlab_global_seo_register_meta_boxes($meta_boxes)
             ],
             [
                 'type' => 'checkbox',
-                'name' => esc_html__('Noindex', 'eurohairlab'),
+                'name' => esc_html__('Block search engines (Noindex)', 'eurohairlab'),
                 'id'   => 'eh_seo_noindex',
+                'desc' => esc_html__('Check only if this page must NOT appear in Google. Leave unchecked to allow index & follow. Also verify Settings → Reading → “Discourage search engines” is unchecked site-wide.', 'eurohairlab'),
                 'std'  => 0,
             ],
         ],

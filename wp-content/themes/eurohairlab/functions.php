@@ -631,6 +631,45 @@ function eurohairlab_filter_document_title(string $title): string
 }
 add_filter('pre_get_document_title', 'eurohairlab_filter_document_title', 20);
 
+function eurohairlab_is_seo_noindex(?WP_Post $post = null): bool
+{
+    $post = $post instanceof WP_Post ? $post : eurohairlab_get_seo_target_post();
+    if (!$post instanceof WP_Post || !function_exists('rwmb_meta')) {
+        return false;
+    }
+
+    $value = rwmb_meta('eh_seo_noindex', [], $post->ID);
+    if (is_array($value)) {
+        $value = reset($value);
+    }
+
+    return in_array($value, [1, '1', true], true);
+}
+
+function eurohairlab_filter_wp_robots(array $robots): array
+{
+    $post = eurohairlab_get_seo_target_post();
+    if (!$post instanceof WP_Post) {
+        return $robots;
+    }
+
+    if (eurohairlab_is_seo_noindex($post)) {
+        $robots['noindex'] = true;
+        $robots['nofollow'] = true;
+
+        return $robots;
+    }
+
+    if ((int) get_option('blog_public') === 1) {
+        unset($robots['noindex'], $robots['nofollow']);
+        $robots['index'] = true;
+        $robots['follow'] = true;
+    }
+
+    return $robots;
+}
+add_filter('wp_robots', 'eurohairlab_filter_wp_robots', 20);
+
 function eurohairlab_output_meta_tags(): void
 {
     $post = eurohairlab_get_seo_target_post();
@@ -642,7 +681,6 @@ function eurohairlab_output_meta_tags(): void
     $meta_title       = eurohairlab_get_meta_title($post);
     $og_title         = function_exists('rwmb_meta') ? trim((string) rwmb_meta('eh_seo_og_title', [], $post->ID)) : '';
     $og_description   = function_exists('rwmb_meta') ? trim((string) rwmb_meta('eh_seo_og_description', [], $post->ID)) : '';
-    $noindex          = function_exists('rwmb_meta') ? (bool) rwmb_meta('eh_seo_noindex', [], $post->ID) : false;
     $og_image         = function_exists('rwmb_meta') ? rwmb_meta('eh_seo_og_image', [], $post->ID) : null;
     $og_image_url     = '';
 
@@ -673,10 +711,6 @@ function eurohairlab_output_meta_tags(): void
 
     if ($og_image_url !== '') {
         echo '<meta property="og:image" content="' . esc_url($og_image_url) . '">' . "\n";
-    }
-
-    if ($noindex) {
-        echo '<meta name="robots" content="noindex,nofollow">' . "\n";
     }
 }
 add_action('wp_head', 'eurohairlab_output_meta_tags', 5);
