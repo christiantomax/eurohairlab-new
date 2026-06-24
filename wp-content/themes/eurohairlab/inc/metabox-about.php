@@ -14,11 +14,16 @@ function eurohairlab_is_about_meta_box_page(): bool
         return false;
     }
 
+    $front_page_id = (int) get_option('page_on_front');
+    if ($front_page_id && $post_id === $front_page_id) {
+        return true;
+    }
+
     $post = get_post($post_id);
 
     return $post instanceof WP_Post
         && $post->post_type === 'page'
-        && $post->post_name === 'about';
+        && $post->post_name === 'home';
 }
 
 add_filter('rwmb_meta_boxes', 'eurohairlab_about_hero_register_meta_boxes');
@@ -171,7 +176,7 @@ function eurohairlab_seed_about_meta_box_defaults(): void
         return;
     }
 
-    $about_page = get_page_by_path('about', OBJECT, 'page');
+    $about_page = get_page_by_path('home', OBJECT, 'page');
     $about_page_id = $about_page instanceof WP_Post ? (int) $about_page->ID : 0;
 
     if (!$about_page_id || get_post_meta($about_page_id, '_eh_about_meta_seeded', true)) {

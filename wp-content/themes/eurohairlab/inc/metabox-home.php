@@ -26,14 +26,14 @@ function eurohairlab_is_home_meta_box_page(): bool
 
     $front_page_id = (int) get_option('page_on_front');
     if ($front_page_id && $post_id === $front_page_id) {
-        return true;
+        return false;
     }
 
     $post = get_post($post_id);
 
     return $post instanceof WP_Post
         && $post->post_type === 'page'
-        && $post->post_name === 'home';
+        && $post->post_name === 'about';
 }
 
 /**
@@ -592,7 +592,7 @@ function eurohairlab_seed_home_meta_box_defaults(): void
 
     $home_page_id = (int) get_option('page_on_front');
     if (!$home_page_id) {
-        $home_page = get_page_by_path('home', OBJECT, 'page');
+        $home_page = get_page_by_path('about', OBJECT, 'page');
         $home_page_id = $home_page instanceof WP_Post ? (int) $home_page->ID : 0;
     }
 
@@ -739,7 +739,7 @@ function eurohairlab_migrate_home_hero_slide_copy_meta(): void
 
     $home_page_id = (int) get_option('page_on_front');
     if (!$home_page_id) {
-        $home_page = get_page_by_path('home', OBJECT, 'page');
+        $home_page = get_page_by_path('about', OBJECT, 'page');
         $home_page_id = $home_page instanceof WP_Post ? (int) $home_page->ID : 0;
     }
 
@@ -784,7 +784,7 @@ function eurohairlab_migrate_home_program_card_durations_meta(): void
 
     $home_page_id = (int) get_option('page_on_front');
     if (!$home_page_id) {
-        $home_page = get_page_by_path('home', OBJECT, 'page');
+        $home_page = get_page_by_path('about', OBJECT, 'page');
         $home_page_id = $home_page instanceof WP_Post ? (int) $home_page->ID : 0;
     }
 
@@ -856,7 +856,7 @@ function eurohairlab_migrate_home_meta_box_hrefs(): void
 
     $home_page_id = (int) get_option('page_on_front');
     if (!$home_page_id) {
-        $home_page = get_page_by_path('home', OBJECT, 'page');
+        $home_page = get_page_by_path('about', OBJECT, 'page');
         $home_page_id = $home_page instanceof WP_Post ? (int) $home_page->ID : 0;
     }
 
@@ -898,7 +898,7 @@ function eurohairlab_sanitize_home_clone_text_values(): void
 
     $home_page_id = (int) get_option('page_on_front');
     if (!$home_page_id) {
-        $home_page = get_page_by_path('home', OBJECT, 'page');
+        $home_page = get_page_by_path('about', OBJECT, 'page');
         $home_page_id = $home_page instanceof WP_Post ? (int) $home_page->ID : 0;
     }
 

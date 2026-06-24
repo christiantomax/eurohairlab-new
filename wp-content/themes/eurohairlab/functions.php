@@ -426,8 +426,8 @@ function eurohairlab_filter_page_specific_meta_boxes(WP_Post $post): void
     ];
 
     $front_page_id = (int) get_option('page_on_front');
-    $is_home_page  = ($front_page_id && (int) $post->ID === $front_page_id) || $post->post_name === 'home';
-    $is_about_page = $post->post_name === 'about';
+    $is_about_page = ($front_page_id && (int) $post->ID === $front_page_id) || $post->post_name === 'home';
+    $is_home_page  = $post->post_name === 'about';
     $is_diagnosis_page = $post->post_name === 'diagnosis';
     $is_treatments_page = $post->post_name === 'treatments' || $post->post_name === 'treatment-programs';
     $is_results_page = $post->post_name === 'results';

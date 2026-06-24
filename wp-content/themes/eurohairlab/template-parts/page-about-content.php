@@ -3,8 +3,11 @@
 declare(strict_types=1);
 
 $theme_uri = esc_url(get_template_directory_uri());
-$figma_uri = $theme_uri . '/assets/images/figma';
 $page_id = get_queried_object_id();
+if (!$page_id) {
+    $about_page = get_page_by_path('about', OBJECT, 'page');
+    $page_id = $about_page instanceof WP_Post ? (int) $about_page->ID : 0;
+}
 $mb_get = static function (string $key) use ($page_id) {
     if (!$page_id || !function_exists('eurohairlab_rwmb_page_meta')) {
         return null;
@@ -12,6 +15,102 @@ $mb_get = static function (string $key) use ($page_id) {
 
     return eurohairlab_rwmb_page_meta($page_id, $key, []);
 };
+$resolve_link = static function ($value, string $fallback = ''): string {
+    $value = is_string($value) ? trim($value) : '';
+
+    if ($value === '') {
+        return $fallback;
+    }
+
+    if (
+        str_starts_with($value, 'http://')
+        || str_starts_with($value, 'https://')
+        || str_starts_with($value, 'mailto:')
+        || str_starts_with($value, 'tel:')
+        || str_starts_with($value, '#')
+    ) {
+        return $value;
+    }
+
+    if (str_starts_with($value, '/')) {
+        return home_url($value);
+    }
+
+    return home_url('/' . ltrim($value, '/'));
+};
+/**
+ * Normalize hero slide copy paragraphs from cloned textarea strings or legacy group rows.
+ *
+ * @param mixed $group
+ * @return list<string>
+ */
+$normalize_hero_slide_copy_paragraphs = static function ($group): array {
+    if (is_string($group)) {
+        $group = trim($group);
+        if ($group === '') {
+            return [];
+        }
+
+        $paragraphs = preg_split('/\R\R+/', $group) ?: [];
+
+        return array_values(array_filter(
+            array_map(static fn ($line): string => trim((string) $line), $paragraphs),
+            static fn (string $line): bool => $line !== ''
+        ));
+    }
+
+    if (!is_array($group)) {
+        return [];
+    }
+
+    $rows = $group['eh_home_hero_desc_rows'] ?? null;
+    if (is_array($rows) && $rows !== []) {
+        $out = [];
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $text = isset($row['eh_home_hero_desc_text']) ? trim((string) $row['eh_home_hero_desc_text']) : '';
+            if ($text !== '') {
+                $out[] = $text;
+            }
+        }
+
+        if ($out !== []) {
+            return $out;
+        }
+    }
+
+    $raw = $group['eh_home_hero_copy_paragraph'] ?? null;
+    if (is_string($raw)) {
+        $raw = trim($raw);
+
+        return $raw === '' ? [] : [$raw];
+    }
+
+    if (is_array($raw)) {
+        return array_values(array_filter(
+            array_map(static fn ($line): string => trim((string) $line), $raw),
+            static fn (string $line): bool => $line !== ''
+        ));
+    }
+
+    $lines = [];
+    foreach ($group as $key => $value) {
+        if ($key === '_state' || $key === 'rwmb_placeholder') {
+            continue;
+        }
+        if (is_string($value)) {
+            $t = trim($value);
+            if ($t !== '') {
+                $lines[] = $t;
+            }
+        }
+    }
+
+    return $lines;
+};
+
 $resolve_image = static function ($value, string $fallback = ''): string {
     if (is_string($value) && $value !== '') {
         return $value;
@@ -45,508 +144,792 @@ $resolve_image = static function ($value, string $fallback = ''): string {
 
     return $fallback;
 };
-$collect_image_urls = static function ($value) use (&$collect_image_urls, $resolve_image): array {
-    if ($value === null || $value === '') {
-        return [];
-    }
 
-    if (is_string($value) || is_numeric($value)) {
-        $resolved = $resolve_image($value, '');
-        return $resolved !== '' ? [$resolved] : [];
-    }
-
-    if (!is_array($value)) {
-        return [];
-    }
-
-    if (isset($value['ID']) || isset($value['full_url']) || isset($value['url'])) {
-        $resolved = $resolve_image($value, '');
-        return $resolved !== '' ? [$resolved] : [];
-    }
-
-    $urls = [];
-    foreach ($value as $item) {
-        foreach ($collect_image_urls($item) as $url) {
-            if ($url !== '') {
-                $urls[] = $url;
-            }
-        }
-    }
-
-    return array_values(array_unique($urls));
-};
-
-$hero_default = [
-    'image' => $figma_uri . '/about-hero.webp',
-    'title' => "The 1st Korean Scalp\nClinic In Jakarta",
-    'body_text' => '',
+$hero_slides_default = [
+    [
+        'image_url' => $theme_uri . '/assets/images/hero-bg.webp',
+        'title' => 'ScalpFirst™',
+        'description_paragraphs' => [
+            'ScalpFirst™ is our signature approach that puts the scalp at the center of every hair treatment. It starts with a detailed scalp assessment to uncover underlying imbalances that cause thinning, shedding, or weak hair.',
+            'By diagnosing the root cause first, ScalpFirst™ allows us to deliver targeted, effective treatments that restore follicle function and support long-term hair health.',
+        ],
+        'button_text' => 'Start Your Free Scalp Analysis',
+        'button_href' => eurohairlab_get_free_scalp_analysis_default_url(),
+        'overlay' => 'bg-[linear-gradient(90deg,rgba(18,16,18,.22)_0%,rgba(18,16,18,.1)_36%,rgba(18,16,18,.68)_100%)]',
+        'position' => 'object-left-center',
+    ],
+    [
+        'image_url' => $theme_uri . '/assets/images/scalp-analysis.webp',
+        'title' => "Clinical Scalp\nDiagnosis",
+        'description_paragraphs' => [
+            'With our diagnose-based approach, we address hair issues at their origin. Thinning, shedding, and fragility all begin at the scalp, reflecting underlying physiological or biochemical imbalances.',
+        ],
+        'button_text' => 'Explore Diagnosis',
+        'button_href' => eurohairlab_get_page_url('diagnosis', '/diagnosis/'),
+        'overlay' => 'bg-[linear-gradient(90deg,rgba(18,16,18,.22)_0%,rgba(18,16,18,.1)_36%,rgba(18,16,18,.68)_100%)]',
+        'position' => 'object-center',
+    ],
+    [
+        'image_url' => $theme_uri . '/assets/images/journey-after.webp',
+        'title' => "Visible Hair\nRecovery",
+        'description_paragraphs' => [
+            'Visible recovery is built on consistent scalp care and evidence-led protocols tailored to your stage of hair change.',
+        ],
+        'button_text' => 'See Real Results',
+        'button_href' => eurohairlab_get_page_url('results', '/results/'),
+        'overlay' => 'bg-[linear-gradient(90deg,rgba(18,16,18,.22)_0%,rgba(18,16,18,.1)_36%,rgba(18,16,18,.68)_100%)]',
+        'position' => 'object-center',
+    ],
+    [
+        'image_url' => $theme_uri . '/assets/images/real-transformations.webp',
+        'title' => "Measured\nHair Results",
+        'description_paragraphs' => [
+            'Measured outcomes help you understand progress with clarity—density, comfort, and scalp balance tracked over time.',
+        ],
+        'button_text' => 'View Real Results',
+        'button_href' => eurohairlab_get_page_url('results', '/results/'),
+        'overlay' => 'bg-[linear-gradient(90deg,rgba(18,16,18,.22)_0%,rgba(18,16,18,.1)_36%,rgba(18,16,18,.68)_100%)]',
+        'position' => 'object-center',
+    ],
 ];
 $foundation_default = [
-    'kicker' => 'Our Foundation',
-    'title' => 'World-Proven Built for You',
-    'body_text' => 'EUROHAIRLAB is the authorised Indonesian franchisee of DR.SCALP Korea, a global scalp care institution with over 17 years of clinical experience, more than 3 million patients treated, 360 clinics across 20+ countries.',
-    'image_left' => $figma_uri . '/about-story-main.webp',
-    'image_right' => $figma_uri . '/about-story-side.webp',
+    'kicker' => 'The Foundation',
+    'title' => "Great Hair Starts at the Scalp",
+    'body_text' => "The scalp is the foundation of every treatment and clinical solution.\n\nMost hair concerns don't begin with the hair. They begin with the scalp that go undiagnosed for years.\n\nAt EUROHAIRLAB, we focus on understand your condition, diagnosing the root before recommending anything",
+    'button_text' => 'Start Your Free Scalp Analysis',
+    'button_href' => eurohairlab_get_free_scalp_analysis_default_url(),
+    'image' => $theme_uri . '/assets/images/scalp-analysis.webp',
+    'video_url' => '',
 ];
-$science_default = [
-    'kicker' => 'Korean Scalp Science',
-    'title' => 'ScalpFirst™',
-    'body_text' => "ScalpFirst™ is EUROHAIRLAB's structured approach that places the scalp at the centre of every treatment decision. Every step is guided by what your diagnostic assessment reveals.\n\nAt EUROHAIRLAB, every decision follows this principle. Assessment before recommendation. Diagnosis before treatment.",
-    'image' => $figma_uri . '/about-korean-science.webp',
+$difference_default = [
+    'kicker' => 'See the Difference',
+    'title' => "3 Million Clinical\nTrials Worldwide,\nProven Success!",
+    'body_text' => 'Thousands of clients have experienced improved hair density and scalp health through our treatment programs. We deliver more than treatments; we provide clinical clarity, a high-precision diagnosis, and a personalised regenerative roadmap.',
+    'button_text' => 'View Real Results',
+    'button_href' => eurohairlab_get_page_url('results', '/results/'),
+    'before_image' => $theme_uri . '/assets/images/journey-before.webp',
+    'after_image' => $theme_uri . '/assets/images/journey-after.webp',
+    'before_label' => 'Before',
+    'after_label' => 'After',
 ];
-$partnership_default = [
-    'kicker' => 'The DR.SCALP Korea Partnership',
-    'title' => 'Guided By Experts',
-    'members' => [
+$treatments_page_url = eurohairlab_get_treatments_page_url();
+$technology_default = [
+    'kicker' => 'EUROHAIRLAB Technology',
+    'title' => 'The Science Behind Your Results',
+    'cards' => [
         [
-            'name' => 'Eliza Ennio Gunawan M',
-            'title' => 'Dokter Spesialis',
-            'bio' => "EUROHAIRLAB Is Administered By Licensed Medical Doctors With Dedicated Training In Scalp Medicine.\n\nThe Expertise Is Global.\n\nThe Care Is Personal.",
-            'image' => $theme_uri . '/assets/about-partnership-team.webp',
+            'title' => 'Scalp Detox',
+            'duration' => '65 minutes',
+            'description' => "A scalp detox treatment using DR. SCALP's special technique with an 8-step Korean method. It deeply cleanses dirt and dead skin cells, improves circulation, leaving the scalp feeling fresh and clean, and the hair lighter and ready for further treatments.\n\nSuitable for:\nOily scalp\nHair exposed to chemical processes (coloring/perming)\nClogged scalp\nPreparation for advanced hair treatments",
+            'image' => $theme_uri . '/assets/images/figma/treatment-program-1.webp',
+            'lightbox_title' => 'Scalp Detox',
+            'href' => $treatments_page_url . '#program-korean',
+        ],
+        [
+            'title' => 'Scalp Revival',
+            'duration' => '60 minutes',
+            'description' => "An intensive treatment designed to nourish weak and thinning hair, restore scalp health, and provide full relaxation. It leaves the scalp feeling healthy and relaxed, while the hair appears thicker, stronger, and more radiant.\n\nSuitable for:\nNormal to oily scalp\nDamaged hair\nScalp with buildup of dirt or residue\nA preparatory step before further treatments",
+            'image' => $theme_uri . '/assets/images/figma/treatment-program-2.webp',
+            'lightbox_title' => 'Scalp Revival',
+            'href' => $treatments_page_url . '#program-korean',
+        ],
+        [
+            'title' => 'Regen Activ™ Hair Loss Treatment',
+            'duration' => '75–90 minutes',
+            'description' => "An advanced scalp and hair loss treatment using the SCALPFIRST™ System with a structured 19-step clinical protocol. It targets hair loss at the root by reactivating follicles, balancing the scalp environment, and improving microcirculation—supporting stronger, healthier, and long-term hair growth.\n\nSuitable for:\nEarly-stage hair loss\nThinning hair / reduced hair density\nImbalanced or inflamed scalp\nPrevention of Androgenetic Alopecia (AGA)",
+            'image' => $theme_uri . '/assets/images/figma/treatment-technology.webp',
+            'lightbox_title' => 'Regen Activ™',
+            'href' => $treatments_page_url . '#program-regan',
+        ],
+        [
+            'title' => 'Regen Boost™ Hormonal Hair Loss Control',
+            'duration' => '75–90 minutes',
+            'description' => "An advanced treatment designed to control hormonally driven hair loss using the SCALPFIRST™ System with a precise 20-step clinical protocol. It works by regulating DHT activity, protecting hair follicles from miniaturization, and stabilizing the scalp—helping to slow hair loss progression and maintain stronger, healthier hair over time.\n\nSuitable for:\nHormonal hair loss (DHT-related)\nReceding hairline or thinning crown\nEarly to moderate Androgenetic Alopecia (AGA)\nMen experiencing progressive hair thinning",
+            'image' => $theme_uri . '/assets/images/figma/treatment-program-3.webp',
+            'lightbox_title' => 'Regen Boost™',
+            'href' => $treatments_page_url . '#program-booster',
         ],
     ],
 ];
-$technology_slides_default = [
-    [
-        'title' => 'Scalp Imaging System',
-        'description' => 'At Eurohairlab, every treatment begins with precise clinical analysis. We combine modern diagnostic tools, scalp imaging technology, and regenerative treatment platforms to accurately identify the root cause of hair loss and deliver targeted solutions.',
-        'image' => $figma_uri . '/about-technology.webp',
-        'alt' => 'Clinical scalp imaging consultation in progress',
-    ],
-    [
-        'title' => 'Density Mapping Review',
-        'description' => 'High-visibility imaging helps our team compare scalp zones, monitor density shifts, and define treatment priorities with less guesswork.',
-        'image' => $figma_uri . '/diagnosis-density.webp',
-        'alt' => 'Hair density review visual',
-    ],
-    [
-        'title' => 'Follicle Condition Check',
-        'description' => 'Close scalp review supports a more accurate understanding of follicle behavior, scalp sensitivity, and the condition behind visible thinning.',
-        'image' => $figma_uri . '/diagnosis-hero.webp',
-        'alt' => 'Specialist performing a follicle condition check',
-    ],
-    [
-        'title' => 'Structured Diagnostic Support',
-        'description' => 'Each consultation combines observation, device-assisted review, and symptom history so treatment recommendations are based on evidence.',
-        'image' => $figma_uri . '/diagnosis-intro.webp',
-        'alt' => 'Structured diagnostic support during consultation',
-    ],
-    [
-        'title' => 'Targeted Treatment Planning',
-        'description' => 'Once the scalp condition is defined, we build a treatment roadmap that aligns in-clinic procedures with realistic recovery milestones.',
-        'image' => $figma_uri . '/treatment-technology.webp',
-        'alt' => 'Treatment planning in a clinical setting',
-    ],
+$programs_default = [
+    'kicker' => 'Treatment Programs',
+    'title' => 'Personalized Hair Recovery',
+    'body_text' => 'At EUROHAIRLAB, every program is structured around the findings of your personal assessment. Ensuring that what you receive is clinically designed around your diagnosis, personalised to your condition, and adjusted as your scalp responds.',
+    'button_text' => 'Learn More Treatment Programs',
+    'button_href' => $treatments_page_url,
+    'cards' => array_map(
+        static function (array $tech_card): array {
+            return [
+                'title' => $tech_card['title'],
+                'duration' => $tech_card['duration'] ?? '',
+                'description' => $tech_card['description'],
+                'image' => $tech_card['image'],
+                'href' => $tech_card['href'],
+            ];
+        },
+        $technology_default['cards']
+    ),
 ];
-$premium_default = [
-    'kicker' => 'Premium Clinic Experience',
-    'title' => 'Designed For Comfort And Privacy',
-    'slides' => [
-        [
-            'image' => $figma_uri . '/about-privacy-1.webp',
-            'alt' => 'Exterior view of the Eurohairlab clinic',
-            'title' => '',
-            'description' => '',
-        ],
-        [
-            'image' => $figma_uri . '/about-privacy-2.webp',
-            'alt' => 'Reception and waiting room inside Eurohairlab',
-            'title' => '',
-            'description' => '',
-        ],
-        [
-            'image' => $figma_uri . '/about-privacy-3.webp',
-            'alt' => 'Private consultation room at Eurohairlab',
-            'title' => '',
-            'description' => '',
-        ],
-    ],
+$testimonials_default = [
+    ['body_text' => "I don't go anywhere without the Clean Hand Sanitizer. It's my peace of mind.", 'name' => 'Natasha'],
+    ['body_text' => 'I had severe hair thinning after stress and hormonal imbalance. After the 90-day program, my hair density improved significantly.', 'name' => 'Angel'],
+    ['body_text' => "I don't go anywhere without the Clean Hand Sanitizer. It's my peace of mind.", 'name' => 'Natasha'],
+    ['body_text' => 'I had severe hair thinning after stress and hormonal imbalance. After the 90-day program, my hair density improved significantly.', 'name' => 'Angel'],
+];
+$consultation_default = [
+    'title' => 'Start Your Great Hair With Us',
+    'button_text' => 'Start Consultation',
+    'button_href' => 'mailto:hello@eurohairlab.com',
+    'background_image' => $theme_uri . '/assets/images/journey-before.webp',
 ];
 
-$hero = array_merge($hero_default, array_filter([
-    'title' => $mb_get('eh_about_hero_title'),
-    'body_text' => $mb_get('eh_about_hero_body_text'),
-], static fn($value) => $value !== null && $value !== ''));
-$hero['image'] = $resolve_image($mb_get('eh_about_hero_image'), $hero_default['image']);
-
-$foundation = array_merge($foundation_default, array_filter([
-    'kicker' => $mb_get('eh_about_foundation_kicker'),
-    'title' => $mb_get('eh_about_foundation_title'),
-    'body_text' => $mb_get('eh_about_foundation_body_text'),
-], static fn($value) => $value !== null && $value !== ''));
-$foundation['image_left'] = $resolve_image($mb_get('eh_about_foundation_image_left'), $foundation_default['image_left']);
-$foundation['image_right'] = $resolve_image($mb_get('eh_about_foundation_image_right'), $foundation_default['image_right']);
-
-$science = array_merge($science_default, array_filter([
-    'kicker' => $mb_get('eh_about_science_kicker'),
-    'title' => $mb_get('eh_about_science_title'),
-    'body_text' => $mb_get('eh_about_science_body_text'),
-], static fn($value) => $value !== null && $value !== ''));
-$science['image'] = $resolve_image($mb_get('eh_about_science_image'), $science_default['image']);
-
-$partnership = array_merge($partnership_default, array_filter([
-    'kicker' => $mb_get('eh_about_partnership_kicker'),
-    'title' => $mb_get('eh_about_partnership_title'),
-], static fn($value) => $value !== null && $value !== ''));
-$partnership_names = $mb_get('eh_about_partnership_member_names');
-$partnership_titles = $mb_get('eh_about_partnership_member_titles');
-$partnership_bios = $mb_get('eh_about_partnership_member_bios');
-$partnership_images = $collect_image_urls($mb_get('eh_about_partnership_member_images'));
-$partnership_hover_images = $collect_image_urls($mb_get('eh_about_partnership_member_hover_images'));
-if (is_array($partnership_names) && !empty($partnership_names)) {
-    $partnership['members'] = array_values(array_filter(array_map(
-        static function ($name, int $index) use ($resolve_image, $partnership_titles, $partnership_bios, $partnership_images, $partnership_hover_images) {
-            if (empty($name)) {
+$hero_images = $mb_get('eh_home_hero_images');
+$hero_titles = $mb_get('eh_home_hero_titles');
+$hero_slide_copy_groups = $mb_get('eh_home_hero_slide_copy');
+$hero_button_texts = $mb_get('eh_home_hero_button_texts');
+$hero_button_hrefs = $mb_get('eh_home_hero_button_hrefs');
+$hero_slides = [];
+if (is_array($hero_images) && !empty($hero_images)) {
+    $hero_images = array_values($hero_images);
+    $hero_slide_copy_groups = is_array($hero_slide_copy_groups) ? array_values($hero_slide_copy_groups) : [];
+    $hero_slides = array_values(array_filter(array_map(
+        static function ($image, int $index) use ($resolve_image, $resolve_link, $hero_titles, $hero_slide_copy_groups, $hero_button_texts, $hero_button_hrefs, $normalize_hero_slide_copy_paragraphs) {
+            $title = is_array($hero_titles) ? ($hero_titles[$index] ?? '') : '';
+            if ($title === '') {
                 return null;
             }
 
+            $copy_group = $hero_slide_copy_groups[$index] ?? null;
+            $description_paragraphs = $normalize_hero_slide_copy_paragraphs($copy_group);
+
             return [
-                'name' => (string) $name,
-                'title' => (string) (is_array($partnership_titles) ? ($partnership_titles[$index] ?? '') : ''),
-                'bio' => (string) (is_array($partnership_bios) ? ($partnership_bios[$index] ?? '') : ''),
-                'image' => (string) ($partnership_images[$index] ?? ''),
-                'hover_image' => (string) ($partnership_hover_images[$index] ?? ($partnership_images[$index] ?? '')),
+                'image_url' => $resolve_image($image, ''),
+                'title' => (string) $title,
+                'description_paragraphs' => $description_paragraphs,
+                'button_text' => (string) (is_array($hero_button_texts) ? ($hero_button_texts[$index] ?? '') : ''),
+                'button_href' => $resolve_link(
+                    (string) (is_array($hero_button_hrefs) ? ($hero_button_hrefs[$index] ?? '') : ''),
+                    (string) ($hero_slides_default[$index]['button_href'] ?? '#')
+                ),
+                'overlay' => 'bg-[linear-gradient(90deg,rgba(18,16,18,.22)_0%,rgba(18,16,18,.1)_36%,rgba(18,16,18,.68)_100%)]',
+                'position' => 'object-center',
             ];
         },
-        $partnership_names,
-        array_keys($partnership_names)
+        $hero_images,
+        array_keys($hero_images)
     )));
-    if (empty($partnership['members'])) {
-        $partnership['members'] = $partnership_default['members'];
-    }
 }
-$active_partnership_member = $partnership['members'][0] ?? $partnership_default['members'][0];
 
-$clinical = [
-    'kicker' => (string) ($mb_get('eh_about_clinical_kicker') ?: 'Clinical Technology'),
-    'title' => (string) ($mb_get('eh_about_clinical_title') ?: 'Precision Technology for Your Condition'),
-    'body_text' => (string) ($mb_get('eh_about_clinical_body_text') ?: 'Every technology at EUROHAIRLAB is sourced from DR.SCALP Korea\'s clinical platform. We combine modern diagnostic tools, scalp imaging technology, and regenerative treatment platforms to accurately identify the root cause of hair loss and deliver targeted solutions.'),
-];
-$technology_slides = $technology_slides_default;
-$clinical_titles = $mb_get('eh_about_clinical_slide_titles');
-$clinical_descriptions = $mb_get('eh_about_clinical_slide_descriptions');
-$clinical_images = array_values((array) $mb_get('eh_about_clinical_slide_images'));
-if (is_array($clinical_titles) && !empty($clinical_titles)) {
-    $technology_slides = array_values(array_filter(array_map(
-        static function ($title, int $index) use ($resolve_image, $clinical_descriptions, $clinical_images) {
+if (empty($hero_slides)) {
+    $hero_slides = $hero_slides_default;
+}
+
+if ($hero_slides !== [] && (is_array($hero_button_texts) || is_array($hero_button_hrefs))) {
+    /**
+     * Apply CTA from the Home Hero meta box. Required when the theme default slides
+     * are used (no custom hero images), and safe to merge when custom slides are used
+     * because values come from the same keys.
+     */
+    foreach ($hero_slides as $h_idx => &$hero_slide) {
+        if (is_array($hero_button_texts) && array_key_exists($h_idx, $hero_button_texts) && trim((string) $hero_button_texts[$h_idx]) !== '') {
+            $hero_slide['button_text'] = (string) $hero_button_texts[$h_idx];
+        }
+        if (is_array($hero_button_hrefs) && array_key_exists($h_idx, $hero_button_hrefs) && trim((string) $hero_button_hrefs[$h_idx]) !== '') {
+            $hero_slide['button_href'] = $resolve_link(
+                (string) $hero_button_hrefs[$h_idx],
+                (string) ($hero_slide['button_href'] ?? '#')
+            );
+        }
+    }
+    unset($hero_slide);
+}
+
+$foundation = array_merge($foundation_default, array_filter([
+    'kicker' => $mb_get('eh_home_foundation_kicker'),
+    'title' => $mb_get('eh_home_foundation_title'),
+    'body_text' => $mb_get('eh_home_foundation_body_text'),
+    'button_text' => $mb_get('eh_home_foundation_button_text'),
+    'button_href' => $resolve_link((string) $mb_get('eh_home_foundation_button_href'), $foundation_default['button_href']),
+    'video_url' => $mb_get('eh_home_foundation_video_url'),
+], static fn($value) => $value !== null && $value !== ''));
+$foundation['image'] = $resolve_image($mb_get('eh_home_foundation_image'), $foundation_default['image']);
+$foundation_video_embed = '';
+if (is_string($foundation['video_url']) && trim($foundation['video_url']) !== '') {
+    $foundation_video_embed = wp_oembed_get(trim($foundation['video_url'])) ?: '';
+}
+
+$difference = array_merge($difference_default, array_filter([
+    'kicker' => $mb_get('eh_home_difference_kicker'),
+    'title' => $mb_get('eh_home_difference_title'),
+    'body_text' => $mb_get('eh_home_difference_body_text'),
+    'button_text' => $mb_get('eh_home_difference_button_text'),
+    'button_href' => $resolve_link((string) $mb_get('eh_home_difference_button_href'), $difference_default['button_href']),
+    'before_label' => $mb_get('eh_home_difference_before_label'),
+    'after_label' => $mb_get('eh_home_difference_after_label'),
+], static fn($value) => $value !== null && $value !== ''));
+$difference['before_image'] = $resolve_image($mb_get('eh_home_difference_before_image'), $difference_default['before_image']);
+$difference['after_image'] = $resolve_image($mb_get('eh_home_difference_after_image'), $difference_default['after_image']);
+
+$technology = array_merge($technology_default, array_filter([
+    'kicker' => $mb_get('eh_home_technology_kicker'),
+    'title' => $mb_get('eh_home_technology_title'),
+], static fn($value) => $value !== null && $value !== ''));
+if (is_array($mb_get('eh_home_technology_card_titles')) && !empty($mb_get('eh_home_technology_card_titles'))) {
+    $technology_titles = $mb_get('eh_home_technology_card_titles');
+    $technology_descriptions = $mb_get('eh_home_technology_card_descriptions');
+    $technology_images = array_values((array) $mb_get('eh_home_technology_card_images'));
+    $technology_lightbox_titles = $mb_get('eh_home_technology_card_lightbox_titles');
+    $technology['cards'] = array_values(array_filter(array_map(
+        static function ($title, int $index) use ($resolve_image, $technology_descriptions, $technology_images, $technology_lightbox_titles) {
             if (empty($title)) {
                 return null;
             }
 
             return [
                 'title' => (string) $title,
-                'description' => (string) (is_array($clinical_descriptions) ? ($clinical_descriptions[$index] ?? '') : ''),
-                'image' => $resolve_image($clinical_images[$index] ?? [], ''),
-                'alt' => (string) $title,
+                'description' => (string) (is_array($technology_descriptions) ? ($technology_descriptions[$index] ?? '') : ''),
+                'image' => $resolve_image(is_array($technology_images) ? ($technology_images[$index] ?? []) : [], ''),
+                'lightbox_title' => (string) (is_array($technology_lightbox_titles) ? ($technology_lightbox_titles[$index] ?? $title) : $title),
             ];
         },
-        $clinical_titles,
-        array_keys($clinical_titles)
+        $technology_titles,
+        array_keys($technology_titles)
     )));
-    if (empty($technology_slides)) {
-        $technology_slides = $technology_slides_default;
+    if (empty($technology['cards'])) {
+        $technology['cards'] = $technology_default['cards'];
     }
 }
 
-$premium = [
-    'kicker' => (string) ($mb_get('eh_about_premium_kicker') ?: $premium_default['kicker']),
-    'title' => (string) ($mb_get('eh_about_premium_title') ?: $premium_default['title']),
-];
-$privacy_slides = $premium_default['slides'];
-$premium_titles = $mb_get('eh_about_premium_slide_titles');
-$premium_descriptions = $mb_get('eh_about_premium_slide_descriptions');
-$premium_images = array_values((array) $mb_get('eh_about_premium_slide_images'));
-if (is_array($premium_images) && !empty($premium_images)) {
-    $privacy_slides = array_values(array_filter(array_map(
-        static function ($image, int $index) use ($resolve_image, $premium_titles, $premium_descriptions, $premium_default) {
-            $fallback_slide = $premium_default['slides'][$index] ?? ['alt' => 'Premium clinic experience', 'title' => '', 'description' => '', 'image' => ''];
+foreach ($technology['cards'] as $ti => &$technology_card) {
+    $fallback = $technology_default['cards'][$ti] ?? null;
+    if (!is_array($fallback)) {
+        continue;
+    }
+    $technology_card['href'] = isset($technology_card['href']) && is_string($technology_card['href']) && $technology_card['href'] !== ''
+        ? $technology_card['href']
+        : $fallback['href'];
+    $technology_card['duration'] = isset($technology_card['duration']) && is_string($technology_card['duration']) && $technology_card['duration'] !== ''
+        ? $technology_card['duration']
+        : ($fallback['duration'] ?? '');
+    if (empty($technology_card['lightbox_title'])) {
+        $technology_card['lightbox_title'] = $fallback['lightbox_title'] ?? $technology_card['title'];
+    }
+}
+unset($technology_card);
+
+$programs_home = array_merge($programs_default, array_filter([
+    'kicker' => $mb_get('eh_home_programs_kicker'),
+    'title' => $mb_get('eh_home_programs_title'),
+    'body_text' => $mb_get('eh_home_programs_body_text'),
+    'button_text' => $mb_get('eh_home_programs_button_text'),
+    'button_href' => $resolve_link((string) $mb_get('eh_home_programs_button_href'), $programs_default['button_href']),
+], static fn($value) => $value !== null && $value !== ''));
+if (is_array($mb_get('eh_home_programs_card_titles')) && !empty($mb_get('eh_home_programs_card_titles'))) {
+    $program_titles = $mb_get('eh_home_programs_card_titles');
+    $program_descriptions = $mb_get('eh_home_programs_card_descriptions');
+    $program_durations = $mb_get('eh_home_programs_card_durations');
+    $program_images = array_values((array) $mb_get('eh_home_programs_card_images'));
+    $programs_home['cards'] = array_values(array_filter(array_map(
+        static function ($title, int $index) use ($resolve_image, $program_descriptions, $program_durations, $program_images) {
+            if (empty($title)) {
+                return null;
+            }
 
             return [
-                'image' => $resolve_image($image, $fallback_slide['image']),
-                'alt' => $fallback_slide['alt'],
-                'title' => (string) (is_array($premium_titles) ? ($premium_titles[$index] ?? '') : ''),
-                'description' => (string) (is_array($premium_descriptions) ? ($premium_descriptions[$index] ?? '') : ''),
+                'title' => (string) $title,
+                'description' => (string) (is_array($program_descriptions) ? ($program_descriptions[$index] ?? '') : ''),
+                'duration' => (string) (is_array($program_durations) ? ($program_durations[$index] ?? '') : ''),
+                'image' => $resolve_image(is_array($program_images) ? ($program_images[$index] ?? []) : [], ''),
             ];
         },
-        $premium_images,
-        array_keys($premium_images)
+        $program_titles,
+        array_keys($program_titles)
     )));
-    if (empty($privacy_slides)) {
-        $privacy_slides = $premium_default['slides'];
+    if (empty($programs_home['cards'])) {
+        $programs_home['cards'] = $programs_default['cards'];
     }
 }
-$privacy_slides = array_merge($privacy_slides, $privacy_slides, $privacy_slides);
+
+foreach ($programs_home['cards'] as $pci => &$programs_card) {
+    $pfb = $programs_default['cards'][$pci] ?? null;
+    $tech_fb = $technology_default['cards'][$pci] ?? null;
+    if (!isset($programs_card['href']) || !is_string($programs_card['href']) || $programs_card['href'] === '') {
+        $programs_card['href'] = is_array($pfb) && isset($pfb['href']) ? (string) $pfb['href'] : $treatments_page_url;
+    }
+    $desc = isset($programs_card['description']) ? trim((string) $programs_card['description']) : '';
+    if ($desc === '' && is_array($tech_fb) && !empty($tech_fb['description'])) {
+        $programs_card['description'] = (string) $tech_fb['description'];
+    }
+    if (empty($programs_card['duration']) && is_array($tech_fb) && !empty($tech_fb['duration'])) {
+        $programs_card['duration'] = (string) $tech_fb['duration'];
+    }
+    if (empty($programs_card['duration']) && is_array($pfb) && !empty($pfb['duration'])) {
+        $programs_card['duration'] = (string) $pfb['duration'];
+    }
+}
+unset($programs_card);
+
+$testimonials = $testimonials_default;
+if (is_array($mb_get('eh_home_testimonial_texts')) && !empty($mb_get('eh_home_testimonial_texts'))) {
+    $testimonial_texts = $mb_get('eh_home_testimonial_texts');
+    $testimonial_names = $mb_get('eh_home_testimonial_names');
+    $testimonials = array_values(array_filter(array_map(
+        static function ($text, int $index) use ($testimonial_names) {
+            $name = is_array($testimonial_names) ? ($testimonial_names[$index] ?? '') : '';
+            if (empty($text) && empty($name)) {
+                return null;
+            }
+
+            return [
+                'body_text' => (string) $text,
+                'name' => (string) $name,
+            ];
+        },
+        $testimonial_texts,
+        array_keys($testimonial_texts)
+    )));
+    if (empty($testimonials)) {
+        $testimonials = $testimonials_default;
+    }
+}
+
+$consultation = array_merge($consultation_default, array_filter([
+    'title' => $mb_get('eh_home_consultation_title'),
+    'button_text' => $mb_get('eh_home_consultation_button_text'),
+    'button_href' => $resolve_link((string) $mb_get('eh_home_consultation_button_href'), $consultation_default['button_href']),
+], static fn($value) => $value !== null && $value !== ''));
+$consultation['background_image'] = $resolve_image($mb_get('eh_home_consultation_background_image'), $consultation_default['background_image']);
 ?>
-<main id="main-content" class="bg-white text-ink">
-  <section id="about-hero" aria-labelledby="about-hero-heading" data-section="about-hero" class="relative bg-white pb-16 pt-20 lg:pb-40">
-    <div class="relative">
-      <img
-        src="<?php echo esc_url($hero['image']); ?>"
-        alt="Close-up portrait of a woman representing healthy hair"
-        class="reveal reveal--hero h-72 w-full object-cover object-left lg:object-top sm:h-[30rem] lg:h-[78vh]"
-        width="1440"
-        height="503"
-        fetchpriority="high"
-        decoding="async"
-      >
-      <div class="reveal reveal--hero mx-4 -mt-12 bg-[#d5bb9f] px-6 py-8 sm:mx-5 sm:max-w-[50rem] sm:px-10 sm:py-10 lg:absolute lg:bottom-[-4rem] lg:right-20 lg:mx-0 lg:mt-0 lg:w-fit lg:px-10 lg:py-20 lg:pb-16 xl:right-20">
-        <h1 id="about-hero-heading" class="font-heading text-[2rem] font-bold leading-[1] tracking-[-0.03em] text-[#231f20] sm:text-[3.4rem] lg:text-[3rem]">
-          <?php echo nl2br(esc_html($hero['title'])); ?>
-        </h1>
-        <?php if (!empty($hero['body_text'] ?? null)): ?>
-          <p class="mt-6 max-w-[27rem] text-base leading-[1.35] text-[#231f20]/92 sm:text-lg lg:mt-8 lg:text-[1.05rem] lg:leading-[1.35]">
-            <?php echo esc_html($hero['body_text']); ?>
-          </p>
-        <?php endif; ?>
-      </div>
-    </div>
-  </section>
+  <main id="main-content" class="bg-white text-eh-ink antialiased">
+    <section aria-labelledby="hero-title" class="homepage-hero relative min-h-screen bg-ink">
+      <div class="homepage-hero-slider" data-homepage-hero-slider>
+        <?php foreach ($hero_slides as $index => $slide) : ?>
+          <article class="homepage-hero-slide relative min-h-screen overflow-hidden">
+            <div class="absolute inset-0">
+              <img
+                src="<?php echo esc_url($slide['image_url']); ?>"
+                alt="<?php echo esc_attr(wp_strip_all_tags(str_replace("\n", ' ', $slide['title']))); ?>"
+                class="h-full w-full object-cover <?php echo esc_attr($slide['position']); ?>"
+                width="1656"
+                height="1032"
+                <?php echo $index === 0 ? 'fetchpriority="high"' : 'loading="lazy"'; ?>
+                decoding="async"
+              >
+              <div class="absolute inset-0 <?php echo esc_attr($slide['overlay']); ?>"></div>
+            </div>
 
-  <section id="about-story" aria-labelledby="about-story-heading" data-section="our-story" class="bg-white lg:pt-20">
-    <div class="px-4 py-14 sm:px-5 sm:py-16 lg:px-20 lg:py-28">
-      <p id="about-story-kicker" class="reveal text-[1rem] font-semibold leading-none text-[#dea093] lg:text-3xl"><?php echo esc_html($foundation['kicker']); ?></p>
-      <div class="relative mt-3 xl:min-h-[45rem]">
-        <div class="reveal">
-          <h2 id="about-story-heading" class="font-heading text-[2rem] font-bold leading-[1] text-[#231f20] lg:max-w-[32rem] lg:text-[4rem]">
-            <?php echo esc_html($foundation['title']); ?>
-          </h2>
-        </div>
+            <div class="relative flex min-h-screen w-full items-end justify-end px-4 pb-24 pt-32 sm:px-5 sm:pb-28 sm:pt-36 lg:px-10 lg:pb-20 xl:px-16">
+              <div class="w-full lg:w-[45%] text-left text-white lg:mb-28 lg:mr-[2rem] xl:mr-[3rem]">
+                <?php if ($index === 0) : ?>
+                  <h1 id="hero-title" class="font-futuraHv text-3xl font-normal capitalize leading-none text-white sm:text-4xl md:text-5xl lg:text-[64px]">
+                    <?php echo nl2br(esc_html($slide['title'])); ?>
+                  </h1>
+                <?php else : ?>
+                  <h2 class="font-futuraHv text-3xl font-normal capitalize leading-none text-white sm:text-4xl md:text-5xl lg:text-[64px]">
+                    <?php echo nl2br(esc_html($slide['title'])); ?>
+                  </h2>
+                <?php endif; ?>
 
-        <article class="reveal mt-8 xl:max-w-[18rem] xl:pt-6">
-          <div class="max-w-[18rem] space-y-7 text-[14px] leading-1 text-[#231f20]/86">
-            <?php foreach (preg_split("/\r\n|\n|\r/", (string) $foundation['body_text']) ?: [] as $paragraph) : ?>
-              <?php if (trim($paragraph) === '') : ?>
-                <?php continue; ?>
-              <?php endif; ?>
-              <p><?php echo esc_html($paragraph); ?></p>
-            <?php endforeach; ?>
-          </div>
-        </article>
+                <?php
+                $hero_desc = isset($slide['description_paragraphs']) && is_array($slide['description_paragraphs'])
+                    ? $slide['description_paragraphs']
+                    : [];
+                ?>
+                <?php if (!empty($hero_desc)) : ?>
+                  <div class="mt-11 space-y-4">
+                    <?php foreach ($hero_desc as $para) : ?>
+                      <p class="font-futuraBk whitespace-pre-line text-[14px] lg:text-[1rem] font-normal leading-[1] text-white">
+                        <?php echo esc_html($para); ?>
+                      </p>
+                    <?php endforeach; ?>
+                  </div>
+                <?php endif; ?>
 
-        <div class="mt-10 grid gap-6 sm:grid-cols-[minmax(0,1fr)_18rem] sm:items-start xl:absolute xl:right-0 xl:top-5 xl:mt-0 xl:flex xl:w-[65vw] xl:max-w-[60rem] xl:items-start xl:justify-end xl:gap-4">
-          <figure class="reveal h-[20rem] overflow-hidden sm:mt-8 sm:h-[26rem] xl:mt-[10rem] xl:h-[38rem] xl:w-[calc(100%-21rem)] ">
-            <img
-              src="<?php echo esc_url($foundation['image_left']); ?>"
-              alt="Portrait of a woman illustrating Eurohairlab beauty campaign"
-              class="h-full w-full object-cover object-center"
-              width="470"
-              height="497"
-              loading="lazy"
-              decoding="async"
-            >
-          </figure>
-
-          <figure class="reveal relative h-[18rem] overflow-hidden sm:h-[22rem] sm:w-full xl:h-[29rem] xl:w-[20rem] xl:flex-none">
-            <img
-              src="<?php echo esc_url($foundation['image_right']); ?>"
-              alt="Video thumbnail of a woman with healthy hair"
-              class="h-full w-full object-cover object-center"
-              width="331"
-              height="497"
-              loading="lazy"
-              decoding="async"
-            >
-          </figure>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section id="korean-hair-science" aria-labelledby="korean-hair-science-heading" data-section="korean-hair-science" class="bg-white my-[4rem] lg:my-0">
-    <div class="px-4 pb-14 sm:px-5 sm:pb-16 lg:px-0 lg:pt-32 lg:pb-72">
-      <div class="grid items-center gap-10 xl:grid-cols-[minmax(0,40rem)_minmax(0,1fr)] xl:gap-20">
-        <figure class="order-2 lg:order-1 reveal relative overflow-hidden">
-          <img
-            src="<?php echo esc_url($science['image']); ?>"
-            alt="Woman holding scalp-care product"
-            class="h-full w-full object-cover object-center"
-            width="634"
-            height="717"
-            loading="lazy"
-            decoding="async"
-          >
-        </figure>
-
-        <article class="order-1 lg:order-2 reveal xl:pt-4">
-          <p id="korean-hair-science-kicker" class="text-[1rem] font-semibold leading-none text-[#dea093] lg:text-3xl"><?php echo esc_html($science['kicker']); ?></p>
-          <h2 id="korean-hair-science-heading" class="font-heading mt-3 text-[2rem] font-bold leading-[1] text-[#231f20] lg:max-w-[15ch] lg:text-[4rem]">
-            <?php echo esc_html($science['title']); ?>
-          </h2>
-          <div class="mt-8 max-w-prose space-y-5 text-[14px] leading-[1] text-[#231f20]/86">
-            <?php foreach (preg_split("/\r\n|\n|\r/", (string) $science['body_text']) ?: [] as $paragraph) : ?>
-              <?php if (trim($paragraph) === '') : ?>
-                <?php continue; ?>
-              <?php endif; ?>
-              <p><?php echo esc_html($paragraph); ?></p>
-            <?php endforeach; ?>
-          </div>
-        </article>
-      </div>
-    </div>
-  </section>
-
-  <section id="guided-by-experts" aria-labelledby="guided-by-experts-heading" data-section="guided-by-experts" data-about-partnership-section class="bg-white">
-    <div>
-      <div class="px-4 sm:px-5 lg:px-20">
-        <p id="guided-by-experts-kicker" class="text-[1rem] font-semibold leading-none text-[#dea093] lg:text-3xl"><?php echo esc_html($partnership['kicker']); ?></p>
-        <h2 id="guided-by-experts-heading" class="font-heading mt-3 text-[2rem] font-bold leading-[1] text-[#231f20] lg:text-[4rem]"><?php echo esc_html($partnership['title']); ?></h2>
-      </div>
-
-      <div class="relative mt-8 px-4 sm:px-5 lg:px-0">
-        <div class="absolute inset-x-0 bottom-0 h-[71%] bg-[#d5bb9f] lg:h-[100%]"></div>
-
-        <div class="relative sm:px-5 lg:px-20 lg:py-0">
-          <div class="grid gap-10 lg:grid-cols-[minmax(0,18rem)_minmax(0,20rem)_minmax(0,1fr)] lg:items-start lg:gap-10 lg:pt-[5.5rem]">
-            <article class="reveal relative z-10">
-              <div data-partnership-active-bio class="space-y-5 text-[14px] leading-[1] text-[#231f20]/92">
-                <?php foreach (preg_split("/\r\n|\n|\r/", (string) $active_partnership_member['bio']) ?: [] as $paragraph) : ?>
-                  <?php if (trim($paragraph) === '') : ?>
-                    <?php continue; ?>
-                  <?php endif; ?>
-                  <p><?php echo esc_html($paragraph); ?></p>
-                <?php endforeach; ?>
-              </div>
-            </article>
-
-            <article class="reveal relative z-10">
-              <h3 data-partnership-active-name class="font-heading text-[1rem] font-bold leading-[1] text-[#d96f73] lg:text-[2rem]"><?php echo esc_html($active_partnership_member['name']); ?></h3>
-              <p data-partnership-active-title class="mt-3 text-[14px] leading-[1] text-black/92"><?php echo esc_html($active_partnership_member['title']); ?></p>
-            </article>
-
-            <div class="reveal relative z-10 lg:self-end">
-              <div class="grid gap-0 grid-cols-2 lg:grid-cols-3 lg:gap-0 lg:items-end">
-                <?php foreach ($partnership['members'] as $index => $member) : ?>
-                  <button
-                    type="button"
-                    class="about-partnership-card group relative aspect-[0.86] overflow-visible bg-transparent lg:overflow-visible h-full"
-                    data-partnership-card
-                    data-partnership-index="<?php echo esc_attr((string) $index); ?>"
-                    data-partnership-name="<?php echo esc_attr((string) $member['name']); ?>"
-                    data-partnership-title="<?php echo esc_attr((string) $member['title']); ?>"
-                    data-partnership-bio="<?php echo esc_attr(trim((string) $member['bio'])); ?>"
-                    data-partnership-main-src="<?php echo esc_url((string) $member['image']); ?>"
-                    data-partnership-hover-src="<?php echo esc_url((string) ($member['hover_image'] ?? $member['image'])); ?>"
-                    aria-label="<?php echo esc_attr((string) $member['name']); ?>"
+                <div class="mt-12 flex flex-col gap-4 sm:flex-row">
+                  <a
+                    href="<?php echo esc_url($slide['button_href']); ?>"
+                    class="homepage-cta homepage-cta--light text-[14px] lg:text-[1rem]"
+                    <?php if (eurohairlab_url_matches_free_scalp_analysis_default($slide['button_href'])) : ?>
+                      <?php echo eurohairlab_free_scalp_analysis_link_attributes($slide['button_href']); ?>
+                    <?php endif; ?>
                   >
+                    <span><?php echo esc_html($slide['button_text']); ?></span>
                     <img
-                      src="<?php echo esc_url((string) $member['image']); ?>"
-                      alt="<?php echo esc_attr((string) $member['name']); ?>"
-                      class="about-partnership-card__image h-full w-full object-contain object-center"
-                      loading="lazy"
+                      src="<?php echo $theme_uri; ?>/assets/images/icons/arrow-button.webp"
+                      alt=""
+                      aria-hidden="true"
+                      class="homepage-cta__arrow"
+                      width="18"
+                      height="18"
                       decoding="async"
-                      data-partnership-card-image
                     >
-                  </button>
-                <?php endforeach; ?>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </article>
+        <?php endforeach; ?>
+      </div>
+      <?php if (count($hero_slides) > 1) : ?>
+        <div class="homepage-hero-dots-shell pointer-events-none absolute inset-x-0 bottom-0 z-[4] flex min-h-[2.5rem] items-end justify-end px-4 pb-[2rem] sm:px-5 sm:pb-28 lg:px-10 lg:pb-20 xl:px-16">
+          <div class="pointer-events-auto mb-6 flex min-h-[1.5rem] w-full justify-start md:mb-[-3rem] sm:mb-8 lg:w-[45%] lg:mb-10 lg:mr-[2rem] xl:mr-[3rem]">
+            <div id="homepage-hero-dots" class="homepage-hero-dots-host"></div>
+          </div>
+        </div>
+      <?php endif; ?>
+    </section>
+
+    <section id="about" aria-labelledby="about-title" class="bg-white">
+      <div class="grid w-full items-stretch gap-0 lg:h-screen lg:grid-cols-[45%_55%]">
+        <article class="flex items-center px-4 py-14 sm:px-5 sm:py-16 lg:px-20 lg:py-16">
+          <div class="max-w-xl reveal">
+            <p class="font-futuraHv text-[24px] font-normal leading-none text-eh-coral"><?php echo esc_html($foundation['kicker']); ?></p>
+            <h2 id="about-title" class="font-futuraHv mt-4 text-3xl font-normal leading-none text-eh-ink sm:text-4xl md:text-5xl lg:text-[64px]">
+              <?php echo nl2br(esc_html($foundation['title'])); ?>
+            </h2>
+            <div class="mt-8 space-y-6 font-futuraBk text-[14px] font-normal leading-[1] text-eh-ink">
+              <?php foreach (preg_split("/\r\n|\n|\r/", (string) $foundation['body_text']) ?: [] as $paragraph) : ?>
+                <?php if (trim($paragraph) === '') : ?>
+                  <?php continue; ?>
+                <?php endif; ?>
+                <p><?php echo esc_html($paragraph); ?></p>
+              <?php endforeach; ?>
+            </div>
+            <a
+              href="<?php echo esc_url($foundation['button_href']); ?>"
+              class="homepage-cta homepage-cta--dark mt-10 text-[14px]"
+              <?php if (eurohairlab_url_matches_free_scalp_analysis_default($foundation['button_href'])) : ?>
+                <?php echo eurohairlab_free_scalp_analysis_link_attributes($foundation['button_href']); ?>
+              <?php endif; ?>
+            >
+              <span><?php echo esc_html($foundation['button_text']); ?></span>
+              <img
+                src="<?php echo $theme_uri; ?>/assets/images/icons/arrow-button.webp"
+                alt=""
+                aria-hidden="true"
+                class="homepage-cta__arrow"
+                width="18"
+                height="18"
+                decoding="async"
+              >
+            </a>
+          </div>
+        </article>
+
+        <figure class="reveal relative min-h-[24rem] overflow-hidden bg-sand lg:h-screen">
+          <?php if ($foundation_video_embed !== '') : ?>
+            <div class="h-full w-full [&_iframe]:h-full [&_iframe]:w-full">
+              <?php echo $foundation_video_embed; ?>
+            </div>
+          <?php else : ?>
+            <img
+              src="<?php echo esc_url($foundation['image']); ?>"
+              alt="<?php echo esc_attr(wp_strip_all_tags(str_replace("\n", ' ', $foundation['title']))); ?>"
+              class="h-full w-full object-cover object-center"
+              width="793"
+              height="709"
+              loading="lazy"
+              decoding="async"
+            >
+          <?php endif; ?>
+        </figure>
+      </div>
+    </section>
+
+    <section id="results" aria-labelledby="results-title" class="border-b border-[#dea093] bg-white">
+      <div class="grid w-full gap-0 lg:h-screen lg:grid-cols-[45%_55%]">
+        <figure class="order-2 lg:order-1 reveal relative min-h-[32rem] overflow-hidden bg-white lg:h-screen">
+          <div class="relative h-full min-h-[32rem] lg:h-screen">
+            <img
+              src="<?php echo esc_url($difference['after_image']); ?>"
+              alt="Hair after Eurohairlab treatment"
+              class="absolute inset-0 h-full w-full object-cover object-center"
+              width="225"
+              height="300"
+              loading="lazy"
+              decoding="async"
+            >
+            <div class="pointer-events-none absolute right-[12%] top-[54%] z-[1] border border-white/70 px-4 py-12 font-futuraHv text-[24px] font-normal uppercase leading-none text-white"><?php echo esc_html($difference['after_label']); ?></div>
+            <div class="before-after-overlay absolute inset-0 z-[2] overflow-hidden" style="clip-path: inset(0 50% 0 0);">
+              <img
+                src="<?php echo esc_url($difference['before_image']); ?>"
+                alt="Hair before Eurohairlab treatment"
+                class="h-full w-full object-cover object-center"
+                width="225"
+                height="300"
+                loading="lazy"
+                decoding="async"
+              >
+              <div class="pointer-events-none absolute left-[22%] top-[34%] border border-white/80 px-4 py-16 font-futuraHv text-[24px] font-normal uppercase leading-none text-white"><?php echo esc_html($difference['before_label']); ?></div>
+            </div>
+            <input
+              id="comparison-slider"
+              type="range"
+              min="1"
+              max="100"
+              value="50"
+              class="before-after-range absolute inset-0 z-20 h-full w-full cursor-ew-resize opacity-0"
+              aria-label="Drag to compare before and after results"
+            >
+            <div class="before-after-line absolute inset-y-0 left-1/2 z-10 w-[3px] -translate-x-1/2 bg-white/80">
+              <div class="before-after-handle absolute bottom-10 left-1/2 flex h-16 w-16 -translate-x-1/2 items-center justify-center rounded-full border-2 border-black/40 bg-white text-ink shadow-soft">
+                <img
+                  src="<?php echo $theme_uri; ?>/assets/images/icons/before-after-handle.webp"
+                  alt=""
+                  aria-hidden="true"
+                  class="h-8 w-8 object-contain"
+                  width="34"
+                  height="31"
+                  decoding="async"
+                >
               </div>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-  </section>
+        </figure>
 
-  <section id="clinical-technology" aria-labelledby="clinical-technology-heading" data-section="clinical-technology" class="bg-white">
-    <div class="lg:border-y lg:border-black/12 py-[4rem] lg:py-0">
-      <div class="grid min-w-0 lg:grid-cols-5">
-        <div class="min-w-0 px-4 py-12 sm:px-5 lg:relative lg:col-span-2 lg:px-16 lg:py-20 xl:px-20 flex flex-col justify-center">
-          <p id="clinical-technology-kicker" class="reveal text-[1rem] font-semibold leading-none text-[#dea093] lg:text-3xl"><?php echo esc_html($clinical['kicker']); ?></p>
-          <article class="reveal mt-3">
-            <h2 id="clinical-technology-heading" class="font-heading text-[2rem] font-bold leading-[1] text-[#231f20] lg:max-w-[15ch] lg:text-[4rem]">
-              <?php echo esc_html($clinical['title']); ?>
+        <article class="order-1 lg:order-2  flex items-center px-4 py-14 sm:px-5 sm:py-16 lg:h-screen lg:px-20 lg:py-16">
+          <div class="max-w-xl reveal">
+            <p class="font-futuraHv text-[24px] font-normal leading-none text-eh-coral"><?php echo esc_html($difference['kicker']); ?></p>
+            <h2 id="results-title" class="font-futuraHv mt-4 text-3xl font-normal leading-none text-eh-ink sm:text-4xl md:text-5xl lg:text-[64px]">
+              <?php echo nl2br(esc_html($difference['title'])); ?>
             </h2>
-            <p class="mt-9 max-w-xl text-[14px] leading-[1] text-[#231f20]/86 lg:block">
-              <?php echo esc_html($clinical['body_text']); ?>
+            <p class="mt-10 max-w-md font-futuraBk text-[14px] font-normal leading-[1] text-eh-ink">
+               <?php echo esc_html($difference['body_text']); ?>
             </p>
-          </article>
-
-          <div class="about-slider-nav reveal hidden items-center gap-6 lg:absolute lg:bottom-0 lg:right-10 lg:mb-10 lg:mt-16 lg:flex lg:justify-end">
-            <button type="button" class="about-slider-nav__button" data-about-tech-prev aria-label="Previous clinical technology slide">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-                <path d="M15 5 8 12l7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"></path>
-              </svg>
-            </button>
-            <p class="font-heading text-[1rem] leading-none text-[#231f20]/82">
-              <span data-about-tech-current>1</span>/<span data-about-tech-total><?php echo esc_html((string) count($technology_slides)); ?></span>
-            </p>
-            <button type="button" class="about-slider-nav__button" data-about-tech-next aria-label="Next clinical technology slide">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-                <path d="m9 5 7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"></path>
-              </svg>
-            </button>
           </div>
-        </div>
+        </article>
+      </div>
+    </section>
 
-        <div class="min-w-0 overflow-hidden border-t border-black/12 lg:col-span-3 lg:overflow-visible lg:border-l lg:border-t-0">
-          <div class="about-tech-slider" data-about-tech-slider>
-            <?php foreach ($technology_slides as $slide) : ?>
-              <article class="about-tech-slide min-h-0 lg:min-h-[90vh]">
-                <figure class="w-screen lg:w-fit h-72 overflow-hidden sm:h-96 lg:h-[35rem]">
+    <section id="diagnosis" aria-labelledby="diagnosis-title" class="bg-white my-[4rem]">
+      <div class="w-full px-4 py-14 sm:px-5 sm:py-16 lg:px-20 lg:py-16">
+        <header class="reveal mx-auto max-w-3xl text-center">
+          <p class="font-futuraHv text-[1rem] font-normal leading-none text-eh-coral"><?php echo esc_html($technology['kicker']); ?></p>
+          <h2 id="diagnosis-title" class="font-futuraHv mt-4 text-center text-[2rem] font-normal leading-none text-eh-ink"><?php echo nl2br(esc_html($technology['title'])); ?></h2>
+        </header>
+
+        <?php
+        $technology_accordion_label = __('EUROHAIRLAB technology treatments', 'eurohairlab');
+        ?>
+
+        <div class="mt-10 space-y-5 lg:hidden" role="list" aria-label="<?php echo esc_attr($technology_accordion_label); ?>">
+          <?php foreach ($technology['cards'] as $index => $card) : ?>
+            <?php $card_href = isset($card['href']) ? (string) $card['href'] : $treatments_page_url; ?>
+            <article class="reveal overflow-hidden rounded-sm" role="listitem">
+              <a href="<?php echo esc_url($card_href); ?>" class="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eh-coral">
+                <div class="relative h-52 w-full overflow-hidden sm:h-60">
                   <img
-                    src="<?php echo esc_url($slide['image']); ?>"
-                    alt="<?php echo esc_attr($slide['alt']); ?>"
-                    class="h-full w-full object-cover object-center"
-                    width="841"
-                    height="438"
-                    loading="lazy"
+                    src="<?php echo esc_url($card['image']); ?>"
+                    alt=""
+                    class="absolute inset-0 h-full w-full object-cover object-center"
+                    width="640"
+                    height="480"
+                    loading="<?php echo $index === 0 ? 'eager' : 'lazy'; ?>"
                     decoding="async"
                   >
-                </figure>
-                <div class="px-4 py-5 sm:px-5 lg:px-8 lg:py-7">
-                  <h3 class="font-heading text-[1.5rem] font-semibold leading-none text-[#231f20] lg:text-4xl"><?php echo esc_html($slide['title']); ?></h3>
-                  <p class="mt-4 max-w-4xl text-[14px] leading-[1] text-[#231f20]/86">
-                    <?php echo esc_html($slide['description']); ?>
-                  </p>
+                  <div class="absolute inset-0 flex items-center justify-center px-4 text-center">
+                    <h3 class="font-futuraHv text-[24px] font-normal capitalize leading-none text-white"><?php echo esc_html($card['title']); ?></h3>
+                  </div>
                 </div>
-              </article>
-            <?php endforeach; ?>
-          </div>
-          <div class="about-slider-nav reveal flex items-center justify-center gap-6 px-4 py-6 sm:px-5 lg:hidden">
-            <button type="button" class="about-slider-nav__button" data-about-tech-prev aria-label="Previous clinical technology slide">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-                <path d="M15 5 8 12l7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"></path>
-              </svg>
-            </button>
-            <p class="font-heading text-[1rem] leading-none text-[#231f20]/82">
-              <span data-about-tech-current>1</span>/<span data-about-tech-total><?php echo esc_html((string) count($technology_slides)); ?></span>
-            </p>
-            <button type="button" class="about-slider-nav__button" data-about-tech-next aria-label="Next clinical technology slide">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-                <path d="m9 5 7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"></path>
-              </svg>
-            </button>
-          </div>
+                <?php if (!empty($card['description'])) : ?>
+                  <div class="border-t border-ink/8 px-4 py-4">
+                    <p class="whitespace-pre-line font-futuraBk text-[15px] font-normal leading-[140%] text-eh-muted"><?php echo esc_html($card['description']); ?></p>
+                  </div>
+                <?php endif; ?>
+              </a>
+            </article>
+          <?php endforeach; ?>
         </div>
-      </div>
-    </div>
-  </section>
 
-  <section id="premium-clinic-experience" aria-labelledby="premium-clinic-experience-heading" data-section="premium-clinic-experience" class="bg-white">
-    <div class="my-[4rem] lg:my-0 px-4 py-14 sm:px-5 sm:py-16 lg:px-16 lg:py-32 xl:px-20">
-      <div class="reveal mx-auto max-w-6xl text-center">
-        <p id="premium-clinic-experience-kicker" class="text-[1rem] font-semibold leading-none text-[#dea093]"><?php echo esc_html($premium['kicker']); ?></p>
-        <h2 id="premium-clinic-experience-heading" class="font-heading mt-3 text-[2rem] font-bold leading-[1] text-[#231f20]"><?php echo esc_html($premium['title']); ?></h2>
-      </div>
-
-      <div class="about-privacy-stage mt-10 lg:mr-[calc(50%-50vw)]">
-        <div class="about-privacy-slider" data-about-privacy-slider>
-          <?php foreach ($privacy_slides as $slide) : ?>
-            <div class="about-privacy-slide">
-              <figure class="overflow-hidden">
-                <img
-                  src="<?php echo esc_url($slide['image']); ?>"
-                  alt="<?php echo esc_attr($slide['alt']); ?>"
-                  class="h-60 w-full object-cover object-center sm:h-72 lg:h-96"
-                  width="492"
-                  height="369"
-                  loading="lazy"
-                  decoding="async"
-                >
-              </figure>
+        <div
+          class="eh-tech-accordion reveal mt-12 hidden lg:flex"
+          role="list"
+          aria-label="<?php echo esc_attr($technology_accordion_label); ?>"
+        >
+          <?php foreach ($technology['cards'] as $index => $card) : ?>
+            <?php $card_href = isset($card['href']) ? (string) $card['href'] : $treatments_page_url; ?>
+            <div class="eh-tech-accordion__cell min-h-0 min-w-0" role="listitem">
+              <a
+                href="<?php echo esc_url($card_href); ?>"
+                class="eh-tech-accordion__panel group relative block h-full min-h-0 overflow-hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eh-coral"
+                aria-label="<?php echo esc_attr($card['title']); ?>"
+              >
+                <span class="eh-tech-accordion__media pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
+                  <img
+                    src="<?php echo esc_url($card['image']); ?>"
+                    alt=""
+                    class="eh-tech-accordion__media-img"
+                    width="1920"
+                    height="1080"
+                    loading="<?php echo $index === 0 ? 'eager' : 'lazy'; ?>"
+                    decoding="async"
+                  >
+                </span>
+                <div class="eh-tech-accordion__overlay pointer-events-none absolute inset-0 z-[2] flex items-center justify-center px-4 py-6">
+                  <div class="eh-tech-accordion__overlay-inner flex max-w-md flex-col items-center justify-center gap-0 text-center">
+                    <div class="eh-tech-accordion__title-wrap">
+                      <span class="eh-tech-accordion__title font-futuraHv text-[24px] font-normal capitalize leading-none text-white"><?php echo esc_html($card['title']); ?></span>
+                    </div>
+                    <?php if (!empty($card['description'])) : ?>
+                      <div class="eh-tech-accordion__body">
+                        <p class="whitespace-pre-line font-futuraBk text-[13px] font-normal leading-[140%] text-white/95 lg:text-sm [text-shadow:0_1px_10px_rgba(0,0,0,0.65)]"><?php echo nl2br(esc_html($card['description'])); ?></p>
+                      </div>
+                    <?php endif; ?>
+                  </div>
+                </div>
+              </a>
             </div>
           <?php endforeach; ?>
         </div>
       </div>
-    </div>
-  </section>
-</main>
+    </section>
+
+    <section id="programs" aria-labelledby="programs-title" class="relative overflow-x-hidden bg-white text-eh-ink my-[4rem]">
+      <div class="relative w-full px-4 py-14 sm:px-5 sm:py-16 lg:px-20 lg:py-16">
+        <header class="reveal mx-auto max-w-4xl text-center">
+          <p class="font-futuraHv text-[24px] font-normal leading-none text-eh-coral"><?php echo esc_html($programs_home['kicker']); ?></p>
+          <h2 id="programs-title" class="font-futuraHv mt-2 text-center text-[2rem] font-normal leading-none text-eh-ink">
+            <?php echo nl2br(esc_html($programs_home['title'])); ?>
+          </h2>
+          <p class="mx-auto mt-6 max-w-3xl text-center font-futuraBk text-[14px] font-normal leading-[1] text-eh-ink">
+            <?php echo esc_html($programs_home['body_text']); ?>
+          </p>
+        </header>
+      </div>
+
+      <div class="programs-home-slider-stage relative z-10 w-screen max-w-[100vw] -translate-x-1/2 left-1/2">
+        <button
+          type="button"
+          class="programs-home-slider__arrow programs-home-slider__arrow--prev"
+          data-programs-home-prev
+          aria-label="<?php echo esc_attr__('Previous treatment program slide', 'eurohairlab'); ?>"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="19" height="33" viewBox="0 0 19 33" fill="none" aria-hidden="true">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M17.4277 17.8388L3.48505 32.1104L0 28.5431L12.2001 16.0552L0 3.56726L3.48505 0L17.4277 14.2716C17.8898 14.7447 18.1493 15.3862 18.1493 16.0552C18.1493 16.7242 17.8898 17.3657 17.4277 17.8388Z" fill="white" fill-opacity="0.66"></path>
+          </svg>
+        </button>
+        <button
+          type="button"
+          class="programs-home-slider__arrow programs-home-slider__arrow--next"
+          data-programs-home-next
+          aria-label="<?php echo esc_attr__('Next treatment program slide', 'eurohairlab'); ?>"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="19" height="33" viewBox="0 0 19 33" fill="none" aria-hidden="true">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M17.4277 17.8388L3.48505 32.1104L0 28.5431L12.2001 16.0552L0 3.56726L3.48505 0L17.4277 14.2716C17.8898 14.7447 18.1493 15.3862 18.1493 16.0552C18.1493 16.7242 17.8898 17.3657 17.4277 17.8388Z" fill="white" fill-opacity="0.66"></path>
+          </svg>
+        </button>
+        <div class="programs-home-slider min-h-unset h-fit" data-programs-home-slider>
+          <?php foreach ($programs_home['cards'] as $card) : ?>
+            <?php $card_href = isset($card['href']) ? (string) $card['href'] : $treatments_page_url; ?>
+            <div class="programs-home-slide-col h-full">
+              <article class="programs-home-slide group flex h-full min-h-0 flex-col overflow-hidden border border-ink/12 bg-white shadow-[0_8px_28px_rgba(32,28,32,0.06)]">
+                <a
+                  href="<?php echo esc_url($card_href); ?>"
+                  class="programs-home-slide__link flex min-h-[19rem] flex-1 flex-col focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eh-coral sm:min-h-[21rem] lg:min-h-[23rem]"
+                  aria-label="<?php echo esc_attr($card['title']); ?>"
+                >
+                  <div class="programs-home-slide__media relative aspect-[16/9] w-full shrink-0 overflow-hidden bg-ink/5 sm:aspect-[2/1]">
+                    <img
+                      src="<?php echo esc_url($card['image']); ?>"
+                      alt=""
+                      class="h-full w-full object-cover object-center"
+                      width="1656"
+                      height="1032"
+                      loading="lazy"
+                      decoding="async"
+                    >
+                  </div>
+                  <div class="programs-home-slide__panel grid min-h-[12rem] flex-1 grid-cols-1 gap-y-4 bg-[#dcc1a4] px-4 py-5 sm:min-h-[13rem] sm:grid-cols-[minmax(10.5rem,14rem)_minmax(0,1fr)] sm:items-stretch sm:gap-x-6 sm:gap-y-0 sm:px-5 sm:py-6 lg:min-h-[14rem] lg:px-6 lg:py-7">
+                    <div class="programs-home-slide__rail flex flex-col justify-between gap-6 pb-4 sm:pb-0">
+                      <p class="programs-home-slide__card-title font-futuraHv text-[1rem] font-normal capitalize leading-none text-eh-ink"><?php echo esc_html($card['title']); ?></p>
+                      <?php if (!empty($card['duration'])) : ?>
+                        <p class="programs-home-slide__duration font-futuraBk text-[14px] font-normal capitalize leading-[1] text-eh-ink"><?php echo esc_html($card['duration']); ?></p>
+                      <?php endif; ?>
+                    </div>
+                    <div class="programs-home-slide__copy flex min-w-0 flex-col justify-start gap-4">
+                      <?php if (!empty($card['description'])) : ?>
+                        <p class="programs-home-slide__description whitespace-pre-line font-futuraBk text-[14px] font-normal leading-[1] text-eh-ink"><?php echo esc_html($card['description']); ?></p>
+                      <?php endif; ?>
+                    </div>
+                  </div>
+                </a>
+              </article>
+            </div>
+          <?php endforeach; ?>
+        </div>
+      </div>
+
+      <div class="relative z-10 px-4 pb-14 pt-10 text-center sm:px-5 sm:pb-16 lg:px-20 lg:pb-20 lg:pt-10">
+        <a
+          href="<?php echo esc_url($programs_home['button_href']); ?>"
+          class="inline-flex min-h-4 items-center justify-center border border-ink/45 px-6 py-2 font-futuraBk text-[14px] font-normal capitalize leading-[1] text-eh-ink transition hover:bg-ink hover:text-white"
+        >
+          <?php echo esc_html($programs_home['button_text']); ?>
+        </a>
+      </div>
+    </section>
+
+    <section aria-label="Client testimonials" class="overflow-x-hidden bg-white">
+      <div class="overflow-hidden py-10 sm:py-12 lg:py-14">
+        <div class="testimonial-marquee">
+          <div class="testimonial-track">
+            <?php foreach ($testimonials as $item) : ?>
+              <article class="testimonial-card text-center text-ink">
+                <p class="text-2xl tracking-[0.24em] text-eh-coral" aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9733;</p>
+                <blockquote class="mt-5 px-5 font-futuraBk text-[14px] font-normal leading-[1] text-eh-ink">
+                  <p><?php echo esc_html($item['body_text']); ?></p>
+                </blockquote>
+                <p class="mt-5 font-futuraBk text-[14px] font-normal leading-[1] text-eh-ink"><?php echo esc_html($item['name']); ?></p>
+              </article>
+            <?php endforeach; ?>
+            <?php foreach ($testimonials as $item) : ?>
+              <article class="testimonial-card testimonial-card--marquee-clone text-center text-ink" aria-hidden="true">
+                <p class="text-2xl tracking-[0.24em] text-eh-coral" aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9733;</p>
+                <blockquote class="mt-5 px-5 font-futuraBk text-[14px] font-normal leading-[1] text-eh-ink">
+                  <p><?php echo esc_html($item['body_text']); ?></p>
+                </blockquote>
+                <p class="mt-5 font-futuraBk text-[14px] font-normal leading-[1] text-eh-ink"><?php echo esc_html($item['name']); ?></p>
+              </article>
+            <?php endforeach; ?>
+            <?php foreach ($testimonials as $item) : ?>
+              <article class="testimonial-card testimonial-card--marquee-clone text-center text-ink" aria-hidden="true">
+                <p class="text-2xl tracking-[0.24em] text-eh-coral" aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9733;</p>
+                <blockquote class="mt-5 px-5 font-futuraBk text-[14px] font-normal leading-[1] text-eh-ink">
+                  <p><?php echo esc_html($item['body_text']); ?></p>
+                </blockquote>
+                <p class="mt-5 font-futuraBk text-[14px] font-normal leading-[1] text-eh-ink"><?php echo esc_html($item['name']); ?></p>
+              </article>
+            <?php endforeach; ?>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="consultation" aria-labelledby="consultation-title" class="overflow-hidden">
+      <div class="relative min-h-[22rem] sm:min-h-[28rem] md:h-[60vh] md:min-h-0">
+        <img
+          src="<?php echo esc_url($consultation['background_image']); ?>"
+          alt="Three women with healthy skin and hair smiling together"
+          class="consultation-image absolute inset-0 block h-full w-full object-cover object-center opacity-90"
+          width="793"
+          height="709"
+          loading="lazy"
+          decoding="async"
+        >
+        <div class="absolute inset-0"></div>
+        <div class="absolute inset-x-0 bottom-0 z-10 px-4 pb-6 text-center sm:px-5 sm:pb-8 md:inset-0 md:flex md:items-center md:justify-center md:px-8 md:pb-0 lg:px-20">
+          <div class="reveal flex w-full flex-col items-center justify-center text-center md:max-w-5xl">
+            <h2 id="consultation-title" class="font-futuraHv mx-auto text-center text-[2rem] font-normal capitalize leading-none text-white  md:max-w-none md:whitespace-nowrap">
+              <?php echo esc_html($consultation['title']); ?>
+            </h2>
+            <a
+              href="<?php echo esc_url($consultation['button_href']); ?>"
+              class="mt-5 inline-flex min-h-4 items-center justify-center self-center border border-white/80 px-8 py-2 font-futuraBk text-[14px] font-normal capitalize leading-[1] text-white transition hover:bg-white hover:text-eh-ink sm:mt-6 sm:px-12"
+            >
+              <?php echo esc_html($consultation['button_text']); ?>
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>

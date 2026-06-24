@@ -6,13 +6,14 @@ $theme_uri = esc_url(get_template_directory_uri());
 $nav_items = eurohairlab_get_primary_nav_items();
 $free_scalp_analysis_url = eurohairlab_resolve_free_scalp_analysis_href('');
 $free_scalp_analysis_link_attrs = eurohairlab_free_scalp_analysis_link_attributes($free_scalp_analysis_url);
-$is_homepage = is_front_page();
+$is_hero_landing = is_page('about');
+$is_homepage = $is_hero_landing;
 $cta_desktop_label = eurohairlab_public_ui_text('Start Online Hair Assessment', 'Mulai asesmen rambut online');
 $cta_mobile_label = eurohairlab_public_ui_text('Start Online Hair Diagnosis', 'Mulai diagnosis rambut online');
 
 /** White bar + dark nav; desktop CTA hover = black bg / white text. */
 $marketing_header_slugs = [
-    'about',
+    'home',
     'diagnosis',
     'treatments',
     'treatment-programs',
@@ -22,7 +23,7 @@ $marketing_header_slugs = [
     'blog-list',
 ];
 $is_blog_posts_index = is_home() && !is_front_page();
-$is_marketing_header = is_page($marketing_header_slugs) || is_singular('post') || $is_blog_posts_index;
+$is_marketing_header = is_front_page() || is_page($marketing_header_slugs) || is_singular('post') || $is_blog_posts_index;
 
 $header_text_class = $is_homepage ? 'text-white' : 'text-ink';
 $header_bg_class = $is_homepage ? 'bg-transparent border-white' : 'bg-white border-black/10';
